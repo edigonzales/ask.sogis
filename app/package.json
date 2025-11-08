@@ -1,0 +1,27 @@
+{
+  "name": "ask-sogis-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "ol": "^9.2.4",
+    "proj4": "2.19.10",
+    "svelte": "5.43.4"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/svelte": "^5.2.0",
+    "jsdom": "^27.1.0",
+    "patch-package": "^8.0.0",
+    "svelte-check": "^4.3.3",
+    "vite": "^5.2.11",
+    "vitest": "^1.5.2"
+  }
+}
