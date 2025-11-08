@@ -4,15 +4,11 @@
   import Map from 'ol/Map';
   import View from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
-  import WMTS, { optionsFromCapabilities } from 'ol/source/WMTS';
-  import WMTSCapabilities from 'ol/format/WMTSCapabilities';
+  import WMTS from 'ol/source/WMTS';
+  import WMTSTileGrid from 'ol/tilegrid/WMTS';
   import proj4 from 'proj4';
   import { register } from 'ol/proj/proj4';
   import { get as getProjection, transform } from 'ol/proj';
-
-  const capabilitiesUrl = 'https://geo.so.ch/api/wmts/1.0.0/WMTSCapabilities.xml';
-  const layerId = 'ch.so.agi.hintergrundkarte_sw';
-  const matrixSet = 'EPSG:2056';
 
   proj4.defs(
     'EPSG:2056',
@@ -20,64 +16,76 @@
   );
   register(proj4);
 
+  const projectionExtent = [2485071.58, 1075346.31, 2828515.82, 1299941.79];
+  const projection = getProjection('EPSG:2056');
+  if (!projection) {
+    throw new Error('EPSG:2056 projection is not available');
+  }
+  projection.setExtent(projectionExtent);
+
+  const resolutions = [
+    4000,
+    2000,
+    1000,
+    500,
+    250,
+    100,
+    50,
+    20,
+    10,
+    5,
+    2.5,
+    1,
+    0.5,
+    0.25,
+    0.1
+  ];
+
+  const matrixIds = resolutions.map((_, index) => index.toString());
+
+  const tileGrid = new WMTSTileGrid({
+    origin: [2420000, 1350000],
+    resolutions,
+    matrixIds
+  });
+
+  const wmtsSource = new WMTS({
+    url: 'https://geo.so.ch/api/wmts/1.0.0/ch.so.agi.hintergrundkarte_sw/default/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}.png',
+    layer: 'ch.so.agi.hintergrundkarte_sw',
+    matrixSet: '2056',
+    format: 'image/png',
+    projection,
+    tileGrid,
+    style: 'default',
+    wrapX: false
+  });
+
   let mapElement;
   let mapInstance;
-  let loadingError = '';
 
   const centerWgs84 = [7.539, 47.208];
 
   onMount(() => {
-    let cancelled = false;
+    const view = new View({
+      projection,
+      center: transform(centerWgs84, 'EPSG:4326', 'EPSG:2056'),
+      resolutions,
+      extent: projectionExtent,
+      constrainResolution: true,
+      zoom: 9
+    });
 
-    async function initMap() {
-      try {
-        const response = await fetch(capabilitiesUrl);
-        if (!response.ok) {
-          throw new Error(`WMTS capabilities request failed with status ${response.status}`);
-        }
-
-        const capabilitiesText = await response.text();
-        const parser = new WMTSCapabilities();
-        const capabilities = parser.read(capabilitiesText);
-        const sourceOptions = optionsFromCapabilities(capabilities, {
-          layer: layerId,
-          matrixSet
-        });
-
-        const projection = getProjection(matrixSet);
-        const view = new View({
-          projection,
-          center: transform(centerWgs84, 'EPSG:4326', matrixSet),
-          resolutions: sourceOptions.tileGrid.getResolutions(),
-          zoom: 0
-        });
-
-        if (!cancelled) {
-          mapInstance = new Map({
-            target: mapElement,
-            layers: [
-              new TileLayer({
-                source: new WMTS({
-                  ...sourceOptions,
-                  wrapX: false
-                })
-              })
-            ],
-            view
-          });
-        }
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          loadingError = error.message;
-        }
-      }
-    }
-
-    initMap();
+    mapInstance = new Map({
+      target: mapElement,
+      layers: [
+        new TileLayer({
+          source: wmtsSource
+        })
+      ],
+      view
+    });
 
     return () => {
-      cancelled = true;
       if (mapInstance) {
         mapInstance.setTarget(null);
         mapInstance = undefined;
@@ -98,16 +106,7 @@
   </aside>
 
   <div class="map-wrapper">
-    <div
-      id="map"
-      bind:this={mapElement}
-      class="map"
-      role="presentation"
-      aria-hidden="true"
-    ></div>
-    {#if loadingError}
-      <div class="map-status" role="alert">{loadingError}</div>
-    {/if}
+    <div id="map" bind:this={mapElement} class="map" role="presentation" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -177,21 +176,6 @@
   .map {
     width: 100%;
     height: 100%;
-  }
-
-  .map-status {
-    position: absolute;
-    inset: 1rem;
-    background: rgba(255, 255, 255, 0.92);
-    border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-    color: #da1e28;
-    font-weight: 500;
-    box-shadow: inset 0 0 0 1px rgba(218, 30, 40, 0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
   }
 
   @media (max-width: 960px) {

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/svelte';
 import App from '../App.svelte';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('ol/Map', () => ({
   default: class {
@@ -27,34 +27,31 @@ vi.mock('ol/layer/Tile', () => ({
   }
 }));
 
-vi.mock('ol/source/WMTS', () => {
-  const resolutions = [1, 0.5, 0.25];
-  return {
-    default: class {
-      constructor(options) {
-        this.options = options;
-      }
-    },
-    optionsFromCapabilities: () => ({
-      tileGrid: {
-        getResolutions: () => resolutions
-      }
-    })
-  };
-});
-
-vi.mock('ol/format/WMTSCapabilities', () => ({
+vi.mock('ol/source/WMTS', () => ({
   default: class {
-    read() {
-      return {};
+    constructor(options) {
+      this.options = options;
     }
   }
 }));
 
-vi.mock('ol/proj', () => ({
-  get: () => ({}),
-  transform: (coords) => coords
+vi.mock('ol/tilegrid/WMTS', () => ({
+  default: class {
+    constructor(options) {
+      this.options = options;
+    }
+  }
 }));
+
+vi.mock('ol/proj', () => {
+  const projection = {
+    setExtent: vi.fn()
+  };
+  return {
+    get: () => projection,
+    transform: (coords) => coords
+  };
+});
 
 vi.mock('ol/proj/proj4', () => ({
   register: () => {}
@@ -67,17 +64,6 @@ vi.mock('proj4', () => ({
 }));
 
 describe('App', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      text: async () => '<Capabilities />'
-    })));
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
   it('renders the chat panel', () => {
     render(App);
     expect(screen.getByRole('heading', { name: /ask\.sogis/i })).toBeInTheDocument();
