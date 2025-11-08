@@ -98,7 +98,13 @@
   </aside>
 
   <div class="map-wrapper">
-    <div bind:this={mapElement} class="map" role="presentation"></div>
+    <div
+      id="map"
+      bind:this={mapElement}
+      class="map"
+      role="presentation"
+      aria-hidden="true"
+    ></div>
     {#if loadingError}
       <div class="map-status" role="alert">{loadingError}</div>
     {/if}

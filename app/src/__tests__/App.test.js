@@ -86,7 +86,7 @@ describe('App', () => {
 
   it('renders the map container', () => {
     render(App);
-    const mapElement = document.querySelector('.map');
+    const mapElement = document.getElementById('map');
     expect(mapElement).toBeInTheDocument();
   });
 });
