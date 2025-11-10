@@ -16,6 +16,8 @@
     "vite": "^7.1.7"
   },
   "dependencies": {
+    "carbon-components-svelte": "^0.91.0",
+    "carbon-icons-svelte": "^13.6.0",
     "ol": "^10.7.0",
     "proj4": "^2.19.10"
   }
