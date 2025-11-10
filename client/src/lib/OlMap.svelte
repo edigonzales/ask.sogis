@@ -9,6 +9,7 @@
     import { get as getProjection, fromLonLat, toLonLat } from 'ol/proj';
     import { register } from 'ol/proj/proj4';
     import proj4 from 'proj4';
+    import Zoom from 'ol/control/Zoom';
 
     let el;     // div ref
     let map;    // OL map instance
@@ -17,7 +18,7 @@
       // Define the custom projection EPSG:2056 (Swiss CH1903+ / LV95)
       proj4.defs("EPSG:2056", "+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=2600000 +y_0=1200000 +ellps=bessel +towgs84=674.374,15.056,405.346,0,0,0,0 +units=m +no_defs");
       register(proj4);
-      
+
       const projection = getProjection('EPSG:2056');
       const projectionExtent = [2420000, 1030000, 2900000, 1350000];
       projection.setExtent(projectionExtent);
@@ -47,9 +48,22 @@
         wrapX: false
       });
 
+      // Create zoom controls 
+      const zoomControl = new Zoom({
+        className: 'ol-zoom',
+        zoomInClassName: 'ol-zoom-in',
+        zoomOutClassName: 'ol-zoom-out',
+        zoomInLabel: '+',
+        zoomOutLabel: '-',
+        zoomInTipLabel: 'Zoom in',
+        zoomOutTipLabel: 'Zoom out',
+        delta: 1,
+      });
+
       // Create the map
       map = new Map({
         target: el,
+        controls: [zoomControl],
         layers: [
           new TileLayer({
             source: wmtsSource
@@ -62,6 +76,16 @@
           resolutions: resolutions
         })
       });
+
+      // After the map is rendered, reposition the zoom control using JavaScript
+      setTimeout(() => {
+        const zoomElement = document.querySelector('.ol-zoom');
+        if (zoomElement && zoomElement instanceof HTMLElement) {
+          zoomElement.style.left = 'auto';
+          zoomElement.style.right = '10px';
+          zoomElement.style.top = '10px';
+        }
+      }, 100);
     });
 
     onDestroy(() => {
@@ -77,4 +101,4 @@
         width: 100%;
         height: 100%;
     }
-</style>
+  </style>
