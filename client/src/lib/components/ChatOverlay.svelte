@@ -1,7 +1,11 @@
 <script>
   import { Button, TextArea } from 'carbon-components-svelte';
+  import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
+  import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
+  import Help from 'carbon-icons-svelte/lib/Help.svelte';
   import { onMount } from 'svelte';
 
+  const overlayId = 'chat-overlay';
   let isOpen = true;
   let isTransitioning = false;
 
@@ -22,11 +26,17 @@
 </script>
 
 {#if isOpen}
-  <div class="chat-overlay">
+  <div class="chat-overlay" id={overlayId}>
     <div class="chat-header">
       <h3>Chat with LLM</h3>
-      <button class="close-button" on:click={toggleOverlay} aria-label="Close chat">
-        ×
+      <button
+        class="close-button"
+        type="button"
+        on:click={toggleOverlay}
+        aria-label="Close chat"
+        aria-controls={overlayId}
+      >
+        <CloseOutline size={24} aria-hidden="true" />
       </button>
     </div>
     <div class="chat-messages">
@@ -47,11 +57,15 @@
 {/if}
 
 <div class="sidebar">
-  <div 
-    class="sidebar-icons" 
+  <div
+    class="sidebar-icons"
     on:click={toggleOverlay}
     role="button"
     tabindex="0"
+    aria-controls={overlayId}
+    aria-expanded={isOpen}
+    aria-label={isOpen ? 'Close chat overlay' : 'Open chat overlay'}
+    aria-pressed={isOpen}
     on:keydown={(e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -60,18 +74,10 @@
     }}
   >
     <div class="icon chat-icon" title="Open Chat">
-      <!-- Chat icon: speech bubble -->
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4.5 17.03L4.08 17.66L4 18V4H20V16Z" fill="currentColor"/>
-      </svg>
+      <ChatBot size={24} aria-hidden="true" />
     </div>
     <div class="icon help-icon" title="Help">
-      <!-- Help icon: question mark in a circle -->
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
-        <path d="M12 16V14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <path d="M12 10C11.4477 10 11 10.4477 11 11V11C11 11.5523 11.4477 12 12 12C12.5523 12 13 11.5523 13 11V11C13 10.4477 12.5523 10 12 10Z" fill="currentColor"/>
-      </svg>
+      <Help size={24} aria-hidden="true" />
     </div>
   </div>
 </div>
