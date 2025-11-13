@@ -87,7 +87,7 @@
     position: absolute;
     top: 0;
     left: 64px; /* Offset by sidebar width */
-    width: 300px;
+    width: 450px;
     height: 100vh;
     background-color: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
@@ -121,7 +121,7 @@
     border: none;
     font-size: 1.5rem;
     cursor: pointer;
-    color: #6f6f6f;
+    color: rgb(22, 22, 22);
     padding: 4px;
     border-radius: 50%;
     width: 32px;
@@ -212,7 +212,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    color: rgb(33, 53, 71);
+    color: rgb(22, 22, 22)
     transition: background-color 0.2s;
   }
 
