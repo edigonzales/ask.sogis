@@ -13,7 +13,7 @@ test.describe('ChatOverlay Component', () => {
 
     // Verify the overlay has the expected dimensions and positioning
     const chatOverlayBox = await chatOverlay.boundingBox();
-    expect(chatOverlayBox.width).toBeCloseTo(300, -1); // Approximately 300px wide
+    expect(chatOverlayBox.width).toBeCloseTo(450, -1); // Approximately 450px wide
     expect(chatOverlayBox.height).toBeGreaterThan(500); // Should be tall enough
 
     // Check if the overlay is positioned with offset for the sidebar
