@@ -12,6 +12,11 @@ import ch.so.agi.ask.model.PlannerOutput;
 import java.lang.reflect.Method;
 import java.util.*;
 
+/**
+ * Spring-basierte Implementierung des {@link ToolRegistry}, die @McpTool-
+ * Beans findet, für den MCP-Client registriert und deren Rückgaben in das im
+ * README beschriebene PlannerResult-Schema (Status, Items, Message) überführt.
+ */
 @Component
 public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAware {
 
@@ -87,6 +92,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
 
             // Implements ToolResult
             if (result instanceof ToolResult tr) {
+                // Tool-Ergebnis-Normalisierung: vereinheitlicht Status/Items/Message für den Orchestrator
                 return new PlannerOutput.Result(tr.status(), tr.items(), tr.message());
             }
 
