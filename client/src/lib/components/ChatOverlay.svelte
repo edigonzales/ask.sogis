@@ -175,8 +175,14 @@
     margin-bottom: 8px;
   }
 
-  .send-button {
+  :global(.send-button) {
     align-self: flex-end;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    inline-size: auto;
+    max-inline-size: none;
+    min-inline-size: 0;
   }
 
   .sidebar {
