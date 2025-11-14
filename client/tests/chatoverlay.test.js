@@ -42,6 +42,9 @@ test.describe('ChatOverlay Component', () => {
 
     const sendButton = page.locator('button:has-text("Send")');
     await expect(sendButton).toBeVisible();
+
+    const sendButtonBox = await sendButton.boundingBox();
+    expect(sendButtonBox?.width ?? 0).toBeLessThan(320);
   });
 
   test('chat overlay has no rounded edges', async ({ page }) => {
