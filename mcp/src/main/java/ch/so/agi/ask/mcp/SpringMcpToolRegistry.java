@@ -6,6 +6,8 @@ import org.springaicommunity.mcp.annotation.McpTool;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
+import org.springframework.util.ReflectionUtils;
 
 import ch.so.agi.ask.model.PlannerOutput;
 
@@ -36,13 +38,12 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
         String[] beanNames = applicationContext.getBeanDefinitionNames();
 
         for (String beanName : beanNames) {
-            Object bean = applicationContext.getBean(beanName);
-            Class<?> type = bean.getClass();
+            Class<?> type = applicationContext.getType(beanName);
+            if (type == null)
+                continue;
 
-            // CGLIB-Proxies: auf die User-Klasse gehen
-            Class<?> userType = org.springframework.aop.support.AopUtils.getTargetClass(bean);
-            if (userType == null)
-                userType = type;
+            // CGLIB-Proxies: auf die User-Klasse gehen, ohne Bean zu instanziieren
+            Class<?> userType = ClassUtils.getUserClass(type);
 
             for (Method method : userType.getDeclaredMethods()) {
                 McpTool ann = method.getAnnotation(McpTool.class);
@@ -53,7 +54,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
                 String description = ann.description();
 
                 method.setAccessible(true);
-                RegisteredTool rt = new RegisteredTool(name, description, bean, method);
+                RegisteredTool rt = new RegisteredTool(name, description, beanName, method, userType);
                 tools.put(name, rt);
 
                 log.info("Registered MCP tool: {} -> {}#{}", name, userType.getSimpleName(), method.getName());
@@ -72,13 +73,16 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
         }
 
         try {
+            Object bean = applicationContext.getBean(rt.beanName());
+            Method invocableMethod = resolveInvocableMethod(bean, rt);
+
             Object result;
 
             // Erwartung: Methoden-Signatur: XxxResult method(Map<String,Object> args)
-            if (rt.method.getParameterCount() == 0) {
-                result = rt.method.invoke(rt.bean);
+            if (invocableMethod.getParameterCount() == 0) {
+                result = invocableMethod.invoke(bean);
             } else {
-                result = rt.method.invoke(rt.bean, args);
+                result = invocableMethod.invoke(bean, args);
             }
 
             if (result == null) {
@@ -110,10 +114,22 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
     public Map<String, ToolDescriptor> listTools() {
         Map<String, ToolDescriptor> map = new LinkedHashMap<>();
         tools.forEach((name, rt) -> map.put(name,
-                new ToolDescriptor(name, rt.description, rt.bean.getClass(), rt.method.getName())));
+                new ToolDescriptor(name, rt.description(), rt.userType(), rt.method().getName())));
         return map;
     }
 
-    private record RegisteredTool(String name, String description, Object bean, Method method) {
+    private Method resolveInvocableMethod(Object bean, RegisteredTool rt) {
+        Method method = rt.method();
+        if (!method.getDeclaringClass().isInstance(bean)) {
+            Method candidate = ReflectionUtils.findMethod(bean.getClass(), method.getName(), method.getParameterTypes());
+            if (candidate != null) {
+                candidate.setAccessible(true);
+                method = candidate;
+            }
+        }
+        return method;
+    }
+
+    private record RegisteredTool(String name, String description, String beanName, Method method, Class<?> userType) {
     }
 }
