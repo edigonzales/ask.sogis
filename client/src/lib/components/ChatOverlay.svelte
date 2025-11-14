@@ -212,7 +212,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    color: rgb(22, 22, 22)
+    color: rgb(22, 22, 22);
     transition: background-color 0.2s;
   }
 
