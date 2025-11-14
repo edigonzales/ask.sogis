@@ -1,7 +1,7 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import 'ol/ol.css';
-  import Map from 'ol/Map';
+  import OlMap from 'ol/Map';
   import View from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
   import WMTSSource from 'ol/source/WMTS';
@@ -34,7 +34,7 @@
   let el;
   let map;
   let selectedBackgroundId = 'sw';
-  const backgroundLayerMap = new Map();
+  const backgroundLayerMap = new globalThis.Map();
 
   function setBackground(selectedId) {
     selectedBackgroundId = selectedId;
@@ -150,7 +150,7 @@
     });
 
     // Create the map
-    map = new Map({
+    map = new OlMap({
       target: el,
       controls: [zoomControl],
       layers: backgroundLayers,
