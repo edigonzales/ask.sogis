@@ -10,10 +10,10 @@
   import { register } from 'ol/proj/proj4';
   import proj4 from 'proj4';
   import Zoom from 'ol/control/Zoom';
-  import { ComboBox } from 'carbon-components-svelte';
+  import BackgroundSelector from './BackgroundSelector.svelte';
 
   const BACKGROUND_OPTIONS = [
-    { id: 'none', text: 'Kein Hintergrund' },
+    { id: 'none', text: 'Kein Hintergrund', layerName: null },
     {
       id: 'sw',
       text: 'Hintergrundkarte s/w',
@@ -37,17 +37,36 @@
   const backgroundLayerMap = new globalThis.Map();
 
   function setBackground(selectedId) {
-    selectedBackgroundId = selectedId;
+    console.log('setBackground called with:', selectedId.detail);
+    selectedBackgroundId = selectedId.detail;
 
+
+    // First hide all layers
     BACKGROUND_OPTIONS.forEach((option) => {
+      console.log("**: " + selectedId.detail);
+
       const layer = backgroundLayerMap.get(option.id);
       if (layer) {
-        layer.setVisible(option.id === selectedBackgroundId);
+        layer.setVisible(false);
         layer.setZIndex(-1000);
+        console.log(`Hiding layer for ${option.id}`);
+      } else {
+        console.log(`No layer found for option ${option.id}`);
       }
     });
 
+    // Then make the selected layer visible (if not 'none')
+    if (selectedId.detail !== 'none') {
+      const selectedLayer = backgroundLayerMap.get(selectedId.detail);
+      if (selectedLayer) {
+        selectedLayer.setVisible(true);
+        selectedLayer.setZIndex(-1000);
+        console.log(`Showing layer for ${selectedId.detail}`);
+      }
+    }
+
     if (!map) {
+      console.log('Map not available');
       return;
     }
 
@@ -57,12 +76,14 @@
         selectedBackgroundId === 'none' ? '#ffffff' : 'transparent';
     }
 
+    console.log('Calling map.render()');
     map.render();
   }
 
-  function handleBackgroundSelect(event) {
-    const { selectedId } = event.detail;
+  function handleBackgroundSelect(selectedId) {
+    console.log('handleBackgroundSelect called with:', selectedId);
     if (!selectedId || selectedId === selectedBackgroundId) {
+      console.log('No change needed, returning');
       return;
     }
 
@@ -128,13 +149,15 @@
 
     const backgroundLayers = [];
     BACKGROUND_OPTIONS.forEach((option) => {
-      if (!option.layerName) {
-        return;
+      if (option.layerName) {
+        const layer = createBackgroundLayer(option.layerName);
+        backgroundLayerMap.set(option.id, layer);
+        backgroundLayers.push(layer);
+      } else {
+        // For 'none' option, we don't create a layer, but we need to handle it in setBackground
+        // So we add a null entry to the map for consistency
+        backgroundLayerMap.set(option.id, null);
       }
-
-      const layer = createBackgroundLayer(option.layerName);
-      backgroundLayerMap.set(option.id, layer);
-      backgroundLayers.push(layer);
     });
 
     // Create zoom controls
@@ -162,7 +185,12 @@
       })
     });
 
-    setBackground(selectedBackgroundId);
+    // Set the initial background after map is created
+    setTimeout(() => {
+      console.log('Background layers map contents:', Object.fromEntries(backgroundLayerMap));
+      console.log('About to call setBackground with:', selectedBackgroundId);
+      setBackground(selectedBackgroundId);
+    }, 0);
 
     // After the map is rendered, reposition the zoom control using JavaScript
     setTimeout(() => {
@@ -187,14 +215,9 @@
 <div class="map-wrapper">
   <div bind:this={el} class="map"></div>
   <div class="background-selector">
-    <ComboBox
-      items={BACKGROUND_OPTIONS}
+    <BackgroundSelector 
       selectedId={selectedBackgroundId}
-      placeholder="Hintergrund auswählen"
-      titleText="Hintergrund"
-      hideLabel={true}
-      direction="top"
-      on:select={handleBackgroundSelect}
+      on:selectionChange={(e) => handleBackgroundSelect(e.detail)}
     />
   </div>
 </div>
@@ -215,7 +238,6 @@
     position: absolute;
     right: 1rem;
     bottom: 1rem;
-    min-width: 240px;
     z-index: 1000;
   }
 </style>
