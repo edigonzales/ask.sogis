@@ -5,6 +5,12 @@ import java.util.List;
 import ch.so.agi.ask.model.Choice;
 import ch.so.agi.ask.model.MapAction;
 
+/**
+ * Transport-Objekt zwischen Orchestrator und REST-Layer, das den im README
+ * beschriebenen Karten-Intent konkretisiert: Status (success/needs_user_choice/
+ * needs_clarification/error), Nutzerhinweis und Listen der MapActions bzw.
+ * Choices.
+ */
 public record ActionPlan(String status, String message, List<MapAction> mapActions, List<Choice> choices) {
     public static ActionPlan ok(List<MapAction> actions, String msg) {
         return new ActionPlan("ok", msg, actions, List.of());

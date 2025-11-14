@@ -9,6 +9,12 @@ import ch.so.agi.ask.model.PlannerOutput;
 
 import java.util.*;
 
+/**
+ * Spring-AI-gestützter Planner, der Intent und ToolCalls (Capabilities) aus der
+ * Benutzereingabe extrahiert. Liefert ein {@link PlannerOutput}, das dem
+ * Sequenzschritt "PlannerLlm" aus dem README entspricht und als Ausgangspunkt
+ * für Orchestrator &amp; ActionPlanner dient.
+ */
 @Service
 public class PlannerLlm {
 
@@ -74,6 +80,11 @@ public class PlannerLlm {
         this.chatClient = chatClient;
     }
 
+    /**
+     * Baut den Prompt aus System- und User-Message, ruft das Planner-LLM und
+     * deserialisiert das JSON in das interne {@link PlannerOutput} (mit Intent,
+     * ToolCalls und initialem Result-Status {@code pending}).
+     */
     public PlannerOutput plan(String sessionId, String userMessage) {
         List<Message> messages = List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userMessage));
 

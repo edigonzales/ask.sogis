@@ -6,9 +6,20 @@ import ch.so.agi.ask.model.*;
 
 import java.util.*;
 
+/**
+ * Übersetzt Intent + {@link PlannerOutput.Result} in eine ausführbare
+ * {@link ActionPlan}. Hier werden MapActions nach Intent-Vorlage erzeugt und
+ * Choice-Optionen vorbereitet, damit der Client die im README beschriebenen
+ * Interaktionen (MapActions &amp; Choices) unmittelbar anwenden kann.
+ */
 @Service
 public class ActionPlanner {
 
+    /**
+     * Formt die MCP-Ergebnisse in eine {@link ActionPlan} um und wählt den passenden
+     * Status für den Client ("success" ⇔ {@code ok}, {@code needs_user_choice},
+     * {@code needs_clarification}, {@code error} analog README).
+     */
     public ActionPlan toActionPlan(String intent, PlannerOutput.Result result) {
         if (result == null) {
             return ActionPlan.error("Keine Resultate vom MCP/Planner.");
@@ -19,6 +30,7 @@ public class ActionPlanner {
             return ActionPlan.ok(template(intent, items.get(0)), "Erledigt.");
         }
         if ("ok".equals(result.status()) && items.size() > 1) {
+            // Choice-Erzeugung: mehrere Kandidaten ⇒ interaktive Auswahl mit Intent-basiertem Label
             List<Choice> choices = items.stream()
                     .map(i -> new Choice((String) i.getOrDefault("id", UUID.randomUUID().toString()),
                             (String) i.getOrDefault("label", intent + " option"),
@@ -32,7 +44,7 @@ public class ActionPlanner {
         return ActionPlan.error(Optional.ofNullable(result.message()).orElse("Unbekannter Status."));
     }
 
-    // Templates pro Intent – hier nur zwei Beispiele
+    // Templates pro Intent: erzeugt MapActions wie im README dokumentiert (setView, addLayer, addMarker …)
     private List<MapAction> template(String intent, Map<String, Object> item) {
         return switch (intent) {
         case "goto_address" -> {
