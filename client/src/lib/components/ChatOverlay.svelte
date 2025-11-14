@@ -141,7 +141,7 @@
     overflow-y: auto;
     margin-bottom: 16px;
     padding: 8px;
-    background-color: #f4f4f4;
+    background-color: rgba(255, 255, 255, 0.0);
     border-radius: 4px;
   }
 
@@ -176,7 +176,7 @@
   }
 
   :global(.send-button) {
-    align-self: flex-end;
+    align-self: flex-start;
     width: auto;
     max-width: none;
     min-width: 0;
