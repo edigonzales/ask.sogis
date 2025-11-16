@@ -35,6 +35,8 @@ public class ChatOrchestrator {
      * Response an den REST-Controller.
      */
     public ChatResponse handleUserPrompt(ChatRequest req) {
+        System.out.println(req);
+        
         // 1) LLM-Plan (Intent + ToolCalls) erzeugen
         PlannerOutput plan = plannerLlm.plan(req.sessionId(), req.userMessage());
 
