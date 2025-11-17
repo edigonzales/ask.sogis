@@ -2,24 +2,23 @@ package ch.so.agi.ask.config;
 
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
-
-import org.springframework.ai.model.SpringAIModelProperties;
+import org.springframework.context.annotation.Primary;
 
 /**
  * Stellt einen {@link ChatModel}-Fallback bereit, falls kein echter Anbieter
- * (z.B. OpenAI) konfiguriert ist. Aktiviert wird die Konfiguration, sobald das
- * Property {@code spring.ai.model.chat} auf {@code mock} gesetzt ist. Das
- * geschieht automatisch durch den {@link OpenAiEnvironmentPostProcessor}, wenn
- * keine API-Keys vorhanden sind.
+ * (z.B. OpenAI) konfiguriert ist. Die Konfiguration ist nur aktiv, wenn keine
+ * API-Keys vorhanden sind – andernfalls greift automatisch die reguläre Spring
+ * AI OpenAI-Auto-Konfiguration.
  */
 @Configuration
-@ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "mock")
+@Conditional(OpenAiApiKeyMissingCondition.class)
 class MockChatConfiguration {
 
     @Bean
+    @Primary
     @ConditionalOnMissingBean
     ChatModel mockChatModel() {
         return new MockChatModel();

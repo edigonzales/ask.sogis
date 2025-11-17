@@ -27,8 +27,6 @@ public class OpenAiEnvironmentPostProcessor implements EnvironmentPostProcessor,
 
     private static final String PROPERTY_SOURCE_NAME = "ask.sogis#model-overrides";
 
-    private static final String OPENAI_API_KEY_PROPERTY = "spring.ai.openai.api-key";
-
     private static final List<String> MODEL_PROPERTIES = List.of(
             SpringAIModelProperties.CHAT_MODEL,
             SpringAIModelProperties.EMBEDDING_MODEL,
@@ -42,8 +40,7 @@ public class OpenAiEnvironmentPostProcessor implements EnvironmentPostProcessor,
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        System.out.println("**** 1");
-        boolean apiKeyPresent = StringUtils.hasText(environment.getProperty(OPENAI_API_KEY_PROPERTY));
+        boolean apiKeyPresent = OpenAiApiKeyMissingCondition.hasApiKey(environment);
         Map<String, String> overrides = new HashMap<>();
 
         if (apiKeyPresent) {
