@@ -21,7 +21,8 @@ public class PlannerLlm {
     private final ChatClient chatClient;
 
     private static final String SYSTEM_PROMPT = """
-            Du bist ein "Planner" für eine Kartenanwendung.
+            Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene 
+            MCP-Funktionen zur Verfügung.
 
             AUFGABE:
             - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
