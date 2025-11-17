@@ -19,7 +19,7 @@ public class LayerTools {
     ) implements ToolResult {}
 
     @McpTool(
-            name = "layers-search",
+            name = "layers.search",
             description = "Dummy search for map layers. Returns mocked WMTS + WMS layers."
     )
     public LayerResult searchLayers(Map<String,Object> args) {

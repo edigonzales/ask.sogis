@@ -39,9 +39,11 @@ public class ChatOrchestrator {
         
         // 1) LLM-Plan (Intent + ToolCalls) erzeugen
         PlannerOutput plan = plannerLlm.plan(req.sessionId(), req.userMessage());
+        System.out.println(plan);
 
         // 2) ToolCalls ausführen (MCP), Ergebnis in plan.result „auffüllen“/korrigieren
         PlannerOutput.Result aggResult = executeToolCalls(plan);
+        System.out.println(aggResult);
 
         // 3) Intent + Result in MapActions/Choices überführen (Policy/Templates)
         ActionPlan ap = actionPlanner.toActionPlan(plan.intent(), aggResult);

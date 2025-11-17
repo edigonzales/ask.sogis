@@ -22,7 +22,7 @@ public class GeoTools {
      * Dummy geocoder tool.
      */
     @McpTool(
-            name = "geo-geocode",
+            name = "geo.geocode",
             description = "Dummy geocoder for addresses. Returns 1 or 2 mock results."
     )
     public GeoResult geocode(Map<String, Object> args) {

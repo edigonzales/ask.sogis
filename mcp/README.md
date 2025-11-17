@@ -69,7 +69,7 @@ sequenceDiagram
 
 ### ChatOrchestrator
 - Vermittelt zwischen HTTP-Controller, Planner, MCP-Client und ActionPlanner.
-- Ruft zunächst `PlannerLlm.plan()` auf, orchestriert anschließend die abgegebenen Tool-Aufrufe über den MCP-Client und aggregiert deren Ergebnisse.
+- Ruft zunächst `PlannerLlm.plan()` auf, orchestriert anschliessend die abgegebenen Tool-Aufrufe über den MCP-Client und aggregiert deren Ergebnisse.
 - Übergibt Intent und aggregierte Ergebnisse an den ActionPlanner und baut die finale `ChatResponse` für den Client.
 
 ### ToolRegistry (SpringMcpToolRegistry)
