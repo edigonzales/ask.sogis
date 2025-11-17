@@ -42,7 +42,6 @@ public class OpenAiEnvironmentPostProcessor implements EnvironmentPostProcessor,
 
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
-        System.out.println("**** 1");
         boolean apiKeyPresent = StringUtils.hasText(environment.getProperty(OPENAI_API_KEY_PROPERTY));
         Map<String, String> overrides = new HashMap<>();
 
