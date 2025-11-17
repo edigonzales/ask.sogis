@@ -7,8 +7,10 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AiConfig {
+
     @Bean
     ChatClient chatClient(ChatModel chatModel) {
         return ChatClient.create(chatModel);
     }
 }
+
