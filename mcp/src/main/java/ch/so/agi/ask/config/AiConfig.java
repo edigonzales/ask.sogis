@@ -10,12 +10,12 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class AiConfig {
 
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean(ChatModel.class)
-    ChatModel fallbackChatModel() {
-        return new MockChatModel();
-    }
+//    @Bean
+//    @Primary
+//    @ConditionalOnMissingBean(ChatModel.class)
+//    ChatModel fallbackChatModel() {
+//        return new MockChatModel();
+//    }
 
     @Bean
     ChatClient chatClient(ChatModel chatModel) {
