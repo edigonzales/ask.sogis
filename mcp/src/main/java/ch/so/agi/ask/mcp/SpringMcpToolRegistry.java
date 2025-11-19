@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
 
+import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
 import java.lang.reflect.Method;
@@ -24,7 +25,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
 
     private static final Logger log = LoggerFactory.getLogger(SpringMcpToolRegistry.class);
 
-    private final Map<String, RegisteredTool> tools = new HashMap<>();
+    private final Map<McpToolCapability, RegisteredTool> tools = new EnumMap<>(McpToolCapability.class);
     private ApplicationContext applicationContext;
 
     @Override
@@ -53,11 +54,18 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
                 String name = ann.name();
                 String description = ann.description();
 
-                method.setAccessible(true);
-                RegisteredTool rt = new RegisteredTool(name, description, beanName, method, userType);
-                tools.put(name, rt);
+                McpToolCapability capability;
+                try {
+                    capability = McpToolCapability.fromId(name);
+                } catch (IllegalArgumentException ex) {
+                    throw new IllegalStateException("Unknown MCP capability declared via @McpTool: " + name, ex);
+                }
 
-                log.info("Registered MCP tool: {} -> {}#{}", name, userType.getSimpleName(), method.getName());
+                method.setAccessible(true);
+                RegisteredTool rt = new RegisteredTool(capability, description, beanName, method, userType);
+                tools.put(capability, rt);
+
+                log.info("Registered MCP tool: {} -> {}#{}", capability.id(), userType.getSimpleName(), method.getName());
             }
         }
 
@@ -65,7 +73,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
     }
 
     @Override
-    public PlannerOutput.Result execute(String capabilityId, Map<String, Object> args) {
+    public PlannerOutput.Result execute(McpToolCapability capabilityId, Map<String, Object> args) {
         RegisteredTool rt = tools.get(capabilityId);
         if (rt == null) {
             log.warn("Unknown MCP tool capabilityId={}", capabilityId);
@@ -111,10 +119,10 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
     }
 
     @Override
-    public Map<String, ToolDescriptor> listTools() {
-        Map<String, ToolDescriptor> map = new LinkedHashMap<>();
-        tools.forEach((name, rt) -> map.put(name,
-                new ToolDescriptor(name, rt.description(), rt.userType(), rt.method().getName())));
+    public Map<McpToolCapability, ToolDescriptor> listTools() {
+        Map<McpToolCapability, ToolDescriptor> map = new EnumMap<>(McpToolCapability.class);
+        tools.forEach((capability, rt) -> map.put(capability,
+                new ToolDescriptor(capability, rt.description(), rt.userType(), rt.method().getName())));
         return map;
     }
 
@@ -130,6 +138,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
         return method;
     }
 
-    private record RegisteredTool(String name, String description, String beanName, Method method, Class<?> userType) {
+    private record RegisteredTool(McpToolCapability capability, String description, String beanName, Method method,
+            Class<?> userType) {
     }
 }

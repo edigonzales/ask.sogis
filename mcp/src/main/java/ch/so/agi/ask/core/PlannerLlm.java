@@ -5,6 +5,8 @@ import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 
+import ch.so.agi.ask.model.IntentType;
+import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
 import java.util.*;
@@ -21,18 +23,18 @@ public class PlannerLlm {
     private final ChatClient chatClient;
 
     private static final String SYSTEM_PROMPT = """
-            Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene 
+            Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene
             MCP-Funktionen zur Verfügung.
 
             AUFGABE:
             - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
             - Du bestimmst einen Intent (Absicht) wie z.B.:
-              - "goto_address"   => Gehe zu einer Adresse und zeige sie auf der Karte.
-              - "load_layer"     => Lade einen Kartenlayer (Themenkarte).
-              - "search_place"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
+              - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
+              - "%s"     => Lade einen Kartenlayer (Themenkarte).
+              - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
             - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
-              - "geo.geocode"    => Wandelt einen Adress-String in Koordinaten um.
-              - "layers.search"  => Findet passende Layer zu einem Thema.
+              - "%s"    => Wandelt einen Adress-String in Koordinaten um.
+              - "%s"  => Findet passende Layer zu einem Thema.
 
             WICHTIG:
             - Du rufst SELBST KEINE Capabilities aus, du erzeugst nur den Plan.
@@ -43,14 +45,14 @@ public class PlannerLlm {
 
             {
               "requestId": "string",            // eine zufällige ID, z.B. UUID oder kurzer String
-              "intent": "goto_address | load_layer | search_place | ...",
+              "intent": "%s | %s | %s | ...",
               "toolCalls": [
                 {
-                  "capabilityId": "string",     // z.B. "geo.geocode" oder "layers.search"
+                  "capabilityId": "string",     // z.B. "%s" oder "%s"
                   "args": {                     // JSON-Objekt mit den Argumenten für diese Capability
-                    // Beispiel für geo.geocode:
+                    // Beispiel für %s:
                     // "q": "Langendorfstrasse 19b, Solothurn"
-                    // Beispiel für layers.search:
+                    // Beispiel für %s:
                     // "query": "Gewässerschutzkarte"
                   }
                 }
@@ -66,16 +68,32 @@ public class PlannerLlm {
             - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
               sollst du für geo-/Layer-Fragen mindestens eine passende Capability vorschlagen.
             - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
-              - intent: "goto_address"
-              - toolCalls: [ { "capabilityId": "geo.geocode", "args": { "q": "<vollständige Adresse>" } } ]
+              - intent: "%s"
+              - toolCalls: [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ]
             - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
-              - intent: "load_layer"
-              - toolCalls: [ { "capabilityId": "layers.search", "args": { "query": "Gewässerschutz" } } ]
+              - intent: "%s"
+              - toolCalls: [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ]
 
             ANTWORT:
             - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
             - Keine Kommentare, kein Markdown, kein zusätzlicher Text.
-            """;
+            """.formatted(
+            IntentType.GOTO_ADDRESS.id(),
+            IntentType.LOAD_LAYER.id(),
+            IntentType.SEARCH_PLACE.id(),
+            McpToolCapability.GEO_GEOCODE.id(),
+            McpToolCapability.LAYERS_SEARCH.id(),
+            IntentType.GOTO_ADDRESS.id(),
+            IntentType.LOAD_LAYER.id(),
+            IntentType.SEARCH_PLACE.id(),
+            McpToolCapability.GEO_GEOCODE.id(),
+            McpToolCapability.LAYERS_SEARCH.id(),
+            McpToolCapability.GEO_GEOCODE.id(),
+            McpToolCapability.LAYERS_SEARCH.id(),
+            IntentType.GOTO_ADDRESS.id(),
+            McpToolCapability.GEO_GEOCODE.id(),
+            IntentType.LOAD_LAYER.id(),
+            McpToolCapability.LAYERS_SEARCH.id());
 
     public PlannerLlm(ChatClient chatClient) {
         this.chatClient = chatClient;

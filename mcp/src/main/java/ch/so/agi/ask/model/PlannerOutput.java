@@ -5,11 +5,11 @@ import java.util.Map;
 
 public record PlannerOutput(
         String requestId,
-        String intent,
+        IntentType intent,
         List<ToolCall> toolCalls,
         Result result
       ) {
-        public record ToolCall(String capabilityId, Map<String,Object> args) {}
+        public record ToolCall(McpToolCapability capabilityId, Map<String,Object> args) {}
         public record Result(
           String status, // ok | needs_user_choice | needs_clarification | error
           List<Map<String,Object>> items, // domänennahe Items (z.B. Geocode-Treffer)

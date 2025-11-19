@@ -3,6 +3,7 @@ package ch.so.agi.ask.core;
 import org.springframework.stereotype.Component;
 
 import ch.so.agi.ask.mcp.ToolRegistry;
+import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
 import java.util.Map;
@@ -16,7 +17,7 @@ public class McpClient {
         this.toolRegistry = toolRegistry;
     }
 
-    public PlannerOutput.Result execute(String capabilityId, Map<String, Object> args) {
+    public PlannerOutput.Result execute(McpToolCapability capabilityId, Map<String, Object> args) {
         return toolRegistry.execute(capabilityId, args);
     }
 }
