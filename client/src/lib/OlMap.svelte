@@ -1,16 +1,35 @@
-<script>
+<script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import 'ol/ol.css';
   import OlMap from 'ol/Map';
   import View from 'ol/View';
+  import type { AnimationOptions } from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
   import WMTSSource from 'ol/source/WMTS';
   import WMTSTileGrid from 'ol/tilegrid/WMTS';
+  import VectorLayer from 'ol/layer/Vector';
+  import VectorSource from 'ol/source/Vector';
+  import Feature from 'ol/Feature';
+  import Point from 'ol/geom/Point';
+  import Style from 'ol/style/Style';
+  import Icon from 'ol/style/Icon';
+  import Text from 'ol/style/Text';
+  import Fill from 'ol/style/Fill';
+  import Stroke from 'ol/style/Stroke';
   import { get as getProjection } from 'ol/proj';
   import { register } from 'ol/proj/proj4';
   import proj4 from 'proj4';
   import Zoom from 'ol/control/Zoom';
   import BackgroundSelector from './BackgroundSelector.svelte';
+  import { mapActionBus } from '$lib/stores/mapActions';
+  import { MapActionType } from '$lib/api/chat-response';
+  import type {
+    MapAction,
+    SetViewPayload,
+    AddMarkerPayload,
+    AddLayerPayload,
+    Coordinates
+  } from '$lib/api/chat-response';
 
   const BACKGROUND_OPTIONS = [
     { id: 'none', text: 'Kein Hintergrund', layerName: null },
@@ -31,63 +50,144 @@
     }
   ];
 
-  let el;
-  let map;
+  const MARKER_ICON_URL = '/marker2.png';
+
+  let el: HTMLDivElement;
+  let map: OlMap | null = null;
+  let markerSource: VectorSource | null = null;
+  let markerLayer: VectorLayer<VectorSource> | null = null;
   let selectedBackgroundId = 'sw';
-  const backgroundLayerMap = new globalThis.Map();
+  const backgroundLayerMap = new globalThis.Map<string, TileLayer<WMTSSource> | null>();
+  let mapActionUnsubscribe: (() => void) | null = null;
 
-  function setBackground(selectedId) {
-    console.log('setBackground called with:', selectedId.detail);
-    selectedBackgroundId = selectedId.detail;
+  function setBackground(selectedId: string) {
+    selectedBackgroundId = selectedId;
 
-
-    // First hide all layers
     BACKGROUND_OPTIONS.forEach((option) => {
-      console.log("**: " + selectedId.detail);
-
       const layer = backgroundLayerMap.get(option.id);
       if (layer) {
         layer.setVisible(false);
         layer.setZIndex(-1000);
-        console.log(`Hiding layer for ${option.id}`);
-      } else {
-        console.log(`No layer found for option ${option.id}`);
       }
     });
 
-    // Then make the selected layer visible (if not 'none')
-    if (selectedId.detail !== 'none') {
-      const selectedLayer = backgroundLayerMap.get(selectedId.detail);
+    if (selectedId !== 'none') {
+      const selectedLayer = backgroundLayerMap.get(selectedId);
       if (selectedLayer) {
         selectedLayer.setVisible(true);
         selectedLayer.setZIndex(-1000);
-        console.log(`Showing layer for ${selectedId.detail}`);
       }
     }
 
     if (!map) {
-      console.log('Map not available');
       return;
     }
 
     const viewport = map.getViewport?.();
     if (viewport) {
-      viewport.style.backgroundColor =
-        selectedBackgroundId === 'none' ? '#ffffff' : 'transparent';
+      viewport.style.backgroundColor = selectedBackgroundId === 'none' ? '#ffffff' : 'transparent';
     }
 
-    console.log('Calling map.render()');
     map.render();
   }
 
-  function handleBackgroundSelect(selectedId) {
-    console.log('handleBackgroundSelect called with:', selectedId);
+  function handleBackgroundSelect(selectedId: string) {
     if (!selectedId || selectedId === selectedBackgroundId) {
-      console.log('No change needed, returning');
       return;
     }
 
     setBackground(selectedId);
+  }
+
+  function extractXY(coord?: Coordinates): [number, number] | null {
+    if (!Array.isArray(coord) || coord.length < 2) {
+      return null;
+    }
+    const [x, y] = coord;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return null;
+    }
+    return [x, y];
+  }
+
+  function handleSetView(payload: SetViewPayload) {
+    if (!map) {
+      return;
+    }
+    const view = map.getView();
+    const animation: AnimationOptions = { duration: 350 };
+    const coords = extractXY(payload.center);
+    if (coords) {
+      animation.center = coords;
+    }
+    if (typeof payload.zoom === 'number' && Number.isFinite(payload.zoom)) {
+      animation.zoom = payload.zoom;
+    }
+    view.animate(animation);
+  }
+
+  function createMarkerStyle(label: string) {
+    return new Style({
+      image: new Icon({
+        src: MARKER_ICON_URL,
+        anchor: [0.5, 1],
+        scale: 0.6
+      }),
+      text: new Text({
+        text: label,
+        offsetY: -35,
+        font: 'bold 14px "Helvetica Neue", Arial, sans-serif',
+        fill: new Fill({ color: '#111' }),
+        stroke: new Stroke({ color: 'rgba(255,255,255,0.85)', width: 3 })
+      })
+    });
+  }
+
+  function handleAddMarker(payload: AddMarkerPayload) {
+    if (!markerSource) {
+      return;
+    }
+
+    const coords = extractXY(payload.coord);
+    if (!coords) {
+      console.warn('Invalid marker coordinates', payload.coord);
+      return;
+    }
+
+    const id = payload.id ?? crypto.randomUUID?.() ?? `marker-${Date.now()}`;
+    const label = payload.label ?? id;
+    const existing = markerSource.getFeatureById(id);
+    if (existing) {
+      markerSource.removeFeature(existing as Feature<Point>);
+    }
+
+    const feature = new Feature({
+      geometry: new Point(coords)
+    });
+    feature.setId(id);
+    feature.setStyle(createMarkerStyle(label));
+    markerSource.addFeature(feature);
+  }
+
+  function handleAddLayer(payload: AddLayerPayload) {
+    console.info('addLayer action received but not implemented yet', payload);
+  }
+
+  function handleMapAction(action: MapAction) {
+    const type = action.type as MapActionType | string;
+    switch (type) {
+      case MapActionType.SetView:
+        handleSetView(action.payload as SetViewPayload);
+        break;
+      case MapActionType.AddMarker:
+        handleAddMarker(action.payload as AddMarkerPayload);
+        break;
+      case MapActionType.AddLayer:
+        handleAddLayer(action.payload as AddLayerPayload);
+        break;
+      default:
+        console.warn('Unknown map action type', action);
+    }
   }
 
   onMount(() => {
@@ -130,7 +230,7 @@
       tileSize: [256, 256]
     });
 
-    const createBackgroundLayer = (layerName) => {
+    const createBackgroundLayer = (layerName: string) => {
       return new TileLayer({
         visible: false,
         source: new WMTSSource({
@@ -147,7 +247,7 @@
       });
     };
 
-    const backgroundLayers = [];
+    const backgroundLayers: TileLayer<WMTSSource>[] = [];
     BACKGROUND_OPTIONS.forEach((option) => {
       if (option.layerName) {
         const layer = createBackgroundLayer(option.layerName);
@@ -185,6 +285,21 @@
       })
     });
 
+    markerSource = new VectorSource();
+    markerLayer = new VectorLayer({
+      source: markerSource
+    });
+    markerLayer.setZIndex(1000);
+    map.addLayer(markerLayer);
+
+    mapActionUnsubscribe = mapActionBus.subscribe((actions) => {
+      if (!actions.length) {
+        return;
+      }
+      actions.forEach((action) => handleMapAction(action));
+      mapActionBus.clear();
+    });
+
     // Set the initial background after map is created
     setTimeout(() => {
       console.log('Background layers map contents:', Object.fromEntries(backgroundLayerMap));
@@ -208,6 +323,9 @@
     if (map) {
       map.setTarget(null);
     }
+    mapActionUnsubscribe?.();
+    markerLayer = null;
+    markerSource = null;
     backgroundLayerMap.clear();
   });
 </script>
