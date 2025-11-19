@@ -1,0 +1,47 @@
+package ch.so.agi.ask.mcp;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class GeoToolsTest {
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Test
+    void mapResults_usesBboxAndCleansLabel() throws Exception {
+        String json = """
+                {"results":[{"feature":{"bbox":[2605899,1229278,2605899,1229278],"display":"Langendorfstrasse 19b, 4500 Solothurn (Adresse)","feature_id":"623490242","srid":"EPSG:2056"}}]}
+                """;
+        JsonNode root = mapper.readTree(json);
+        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+
+        List<Map<String, Object>> items = geoTools.mapResults(root.path("results"));
+
+        assertEquals(1, items.size());
+        Map<String, Object> item = items.get(0);
+        assertEquals("623490242", item.get("id"));
+        assertEquals("Langendorfstrasse 19b, 4500 Solothurn", item.get("label"));
+        assertEquals("EPSG:2056", item.get("crs"));
+        assertEquals(List.of(2605899.0, 1229278.0, 2605899.0, 1229278.0), item.get("coord"));
+    }
+
+    @Test
+    void mapResults_returnsEmptyWhenMissingData() throws Exception {
+        String json = """
+                {"results":[{"feature":{"display":"", "feature_id":null}}]}
+                """;
+        JsonNode root = mapper.readTree(json);
+        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+
+        List<Map<String, Object>> items = geoTools.mapResults(root.path("results"));
+        assertTrue(items.isEmpty());
+    }
+}
