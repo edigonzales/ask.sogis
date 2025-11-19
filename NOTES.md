@@ -1,5 +1,9 @@
 ## Mögliche Fragen
 
+- Wos sind die Gewässerschutzzonen in Grenchen?
+-> Wie weiss er welcher MCP er aufrufen muss????
+
+
 - zeige eine karte mit den adressen und grundstücken in trimbach
 - zeige den grössten pool in trimbach
 - wer ist der vermessungsingenieur für winznau?

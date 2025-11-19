@@ -131,12 +131,12 @@
       image: new Icon({
         src: MARKER_ICON_URL,
         anchor: [0.5, 1],
-        scale: 0.6
+        scale: 1.0
       }),
       text: new Text({
         text: label,
-        offsetY: -35,
-        font: 'bold 14px "Helvetica Neue", Arial, sans-serif',
+        offsetY: -50,
+        font: 'bold 16px "Helvetica Neue", Arial, sans-serif',
         fill: new Fill({ color: '#111' }),
         stroke: new Stroke({ color: 'rgba(255,255,255,0.85)', width: 3 })
       })

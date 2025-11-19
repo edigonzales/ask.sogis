@@ -24,10 +24,10 @@ export const POST: RequestHandler = async ({ request }) => {
           {
             type: 'addMarker',
             payload: {
-              style: 'pin-default',
+              //style: 'pin-default',
               coord: [2605899.0, 1229278.0, 2605899.0, 1229278.0],
               id: 'addr-623490242',
-              label: 'Gefundene Adresse'
+              label: 'Langendorfstrasse 19b, 4500 Solothurn'
             }
           }
         ],

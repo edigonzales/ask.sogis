@@ -113,8 +113,11 @@
     </div>
     <div class="chat-input">
       <TextArea
+        labelText="&nbsp;"
         placeholder="Type your message here..."
         rows={3}
+        cols={10}
+        maxCount={200}
         class="input-textarea"
         bind:value={prompt}
         on:keydown={handleInputKeydown}
@@ -163,7 +166,7 @@
     position: absolute;
     top: 0;
     left: 64px; /* Offset by sidebar width */
-    width: 450px;
+    width: 550px;
     height: 100vh;
     background-color: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
@@ -223,13 +226,14 @@
 
   .message {
     padding: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 16px;
     border-radius: 4px;
     max-width: 90%;
+    line-height: 1.5;
   }
 
   .bot-message {
-    background-color: #e0e0e0;
+    background-color: rgb(244, 244, 244);
     align-self: flex-start;
     margin-right: auto;
   }
