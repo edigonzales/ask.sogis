@@ -1,6 +1,7 @@
 package ch.so.agi.ask.core;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -11,8 +12,8 @@ import ch.so.agi.ask.model.PlannerOutput;
 
 /**
  * Zentraler Ablaufkoordinator zwischen HTTP-Controller, {@link PlannerLlm},
- * {@link McpClient} und {@link ActionPlanner}. Er übernimmt den vom Planner
- * gelieferten Intent, orchestriert die MCP-Ausführung der vorgeschlagenen
+ * {@link McpClient} und {@link ActionPlanner}. Er übernimmt die vom Planner
+ * gelieferten Intents (Steps), orchestriert die MCP-Ausführung der vorgeschlagenen
  * ToolCalls und baut daraus gemeinsam mit dem ActionPlanner die finale
  * {@code ChatResponse}, wie im README-Sequenzdiagramm beschrieben.
  */
@@ -36,43 +37,71 @@ public class ChatOrchestrator {
      */
     public ChatResponse handleUserPrompt(ChatRequest req) {
         System.out.println(req);
-        
+
         // 1) LLM-Plan (Intent + ToolCalls) erzeugen
         PlannerOutput plan = plannerLlm.plan(req.sessionId(), req.userMessage());
         System.out.println(plan);
 
-        // 2) ToolCalls ausführen (MCP), Ergebnis in plan.result „auffüllen“/korrigieren
-        PlannerOutput.Result aggResult = executeToolCalls(plan);
-        System.out.println(aggResult);
+        // 2) ToolCalls je Step ausführen (MCP) und ActionPlans erzeugen
+        List<ChatResponse.Step> steps = buildSteps(plan);
 
-        // 3) Intent + Result in MapActions/Choices überführen (Policy/Templates)
-        ActionPlan ap = actionPlanner.toActionPlan(plan.intent(), aggResult);
+        // 3) Finale ChatResponse inklusive Gesamtstatus
+        return new ChatResponse(plan.requestId(), steps, aggregateStatus(steps));
+    }
 
-        // 4) Finale ChatResponse
-        return new ChatResponse(plan.requestId(), plan.intent(), ap.status(),
-                Optional.ofNullable(aggResult.message()).orElse(ap.message()), ap.mapActions(), ap.choices(),
-                Map.of("raw", aggResult) // optional
-        );
+    private List<ChatResponse.Step> buildSteps(PlannerOutput plan) {
+        List<ChatResponse.Step> steps = new ArrayList<>();
+        if (plan.steps() == null) {
+            return steps;
+        }
+
+        for (PlannerOutput.Step step : plan.steps()) {
+            PlannerOutput.Result aggResult = executeToolCalls(step);
+            System.out.println(aggResult);
+
+            ActionPlan ap = actionPlanner.toActionPlan(step.intent(), aggResult);
+            var message = Optional.ofNullable(aggResult).map(PlannerOutput.Result::message).orElse(ap.message());
+            steps.add(new ChatResponse.Step(step.intent(), ap.status(), message, ap.mapActions(), ap.choices()));
+        }
+        return steps;
     }
 
     /**
-     * Führt alle vom Planner vorgeschlagenen Capabilities aus und liefert das
-     * aktuellste {@link PlannerOutput.Result}. Dabei bleibt der vom Tool
-     * gesetzte Status (z. B. {@code success}, {@code needs_clarification}) erhalten,
-     * sodass der ActionPlanner konsistente Entscheidungen treffen kann.
+     * Führt alle vom Planner vorgeschlagenen Capabilities eines einzelnen Steps
+     * aus und liefert das aktuellste {@link PlannerOutput.Result}. Dabei bleibt der
+     * vom Tool gesetzte Status (z. B. {@code success}, {@code needs_clarification})
+     * erhalten, sodass der ActionPlanner konsistente Entscheidungen treffen kann.
      */
-    private PlannerOutput.Result executeToolCalls(PlannerOutput plan) {
-        PlannerOutput.Result current = plan.result();
-        if (plan.toolCalls() == null || plan.toolCalls().isEmpty())
+    private PlannerOutput.Result executeToolCalls(PlannerOutput.Step step) {
+        if (step == null) {
+            return null;
+        }
+        PlannerOutput.Result current = step.result();
+        if (step.toolCalls() == null || step.toolCalls().isEmpty())
             return current;
 
-        // Sehr einfache Aggregation: wir nehmen das Result der letzten
-        // ToolCall-Ausführung.
+        // Sehr einfache Aggregation: wir nehmen das Result der letzten ToolCall-Ausführung.
         // In echt: mergen/akkumulieren, Fehlerbehandlung, Tracing, Timeouts, …
         PlannerOutput.Result last = current;
-        for (PlannerOutput.ToolCall tc : plan.toolCalls()) {
+        for (PlannerOutput.ToolCall tc : step.toolCalls()) {
             last = mcpClient.execute(tc.capabilityId(), tc.args());
         }
         return last;
+    }
+
+    private String aggregateStatus(List<ChatResponse.Step> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return "ok";
+        }
+        if (steps.stream().anyMatch(s -> "error".equals(s.status()))) {
+            return "error";
+        }
+        if (steps.stream().anyMatch(s -> "needs_clarification".equals(s.status()))) {
+            return "needs_clarification";
+        }
+        if (steps.stream().anyMatch(s -> "needs_user_choice".equals(s.status()))) {
+            return "needs_user_choice";
+        }
+        return "ok";
     }
 }

@@ -28,10 +28,12 @@ public class PlannerLlm {
 
             AUFGABE:
             - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
-            - Du bestimmst einen Intent (Absicht) wie z.B.:
+            - Du bestimmst ein oder mehrere Intents (Absichten) wie z.B.:
               - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
               - "%s"     => Lade einen Kartenlayer (Themenkarte).
               - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
+            - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
+              in der gewünschten Ausführungsreihenfolge an.
             - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
               - "%s"    => Wandelt einen Adress-String in Koordinaten um.
               - "%s"  => Findet passende Layer zu einem Thema.
@@ -44,35 +46,40 @@ public class PlannerLlm {
             AUSGABEFORMAT (JSON, KEIN MARKDOWN):
 
             {
-              "requestId": "string",            // eine zufällige ID, z.B. UUID oder kurzer String
-              "intent": "%s | %s | %s | ...",
-              "toolCalls": [
+              "requestId": "string",            // z.B. UUID oder kurzer String
+              "steps": [
                 {
-                  "capabilityId": "string",     // z.B. "%s" oder "%s"
-                  "args": {                     // JSON-Objekt mit den Argumenten für diese Capability
-                    // Beispiel für %s:
-                    // "q": "Langendorfstrasse 19b, Solothurn"
-                    // Beispiel für %s:
-                    // "query": "Gewässerschutzkarte"
+                  "intent": "%s | %s | %s | ...",
+                  "toolCalls": [
+                    {
+                      "capabilityId": "string",     // z.B. "%s" oder "%s"
+                      "args": {
+                        // Beispiel für %s:
+                        // "q": "Langendorfstrasse 19b, Solothurn"
+                        // Beispiel für %s:
+                        // "query": "Gewässerschutzkarte"
+                      }
+                    }
+                  ],
+                  "result": {
+                    "status": "pending",            // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
+                    "items": [],
+                    "message": ""
                   }
                 }
-              ],
-              "result": {
-                "status": "pending",            // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
-                "items": [],
-                "message": ""
-              }
+              ]
             }
 
             REGELN:
+            - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
             - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
               sollst du für geo-/Layer-Fragen mindestens eine passende Capability vorschlagen.
             - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
-              - intent: "%s"
-              - toolCalls: [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ]
+              - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
             - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
-              - intent: "%s"
-              - toolCalls: [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ]
+              - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ] } ]
+            - Wenn der User "Gehe zur Adresse ... und lade die Gewässerschutzkarte" schreibt, erzeugst du zwei Schritte
+              (erst goto_address, dann load_layer).
 
             ANTWORT:
             - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
@@ -101,7 +108,7 @@ public class PlannerLlm {
 
     /**
      * Baut den Prompt aus System- und User-Message, ruft das Planner-LLM und
-     * deserialisiert das JSON in das interne {@link PlannerOutput} (mit Intent,
+     * deserialisiert das JSON in das interne {@link PlannerOutput} (mit Steps,
      * ToolCalls und initialem Result-Status {@code pending}).
      */
     public PlannerOutput plan(String sessionId, String userMessage) {

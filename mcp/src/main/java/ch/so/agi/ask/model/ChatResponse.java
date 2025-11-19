@@ -2,7 +2,13 @@ package ch.so.agi.ask.model;
 
 import java.util.List;
 
-public record ChatResponse(String requestId, IntentType intent, // z.B. goto_address, load_layer, …
-        String status, // ok | needs_user_choice | needs_clarification | error
-        String message, List<MapAction> mapActions, List<Choice> choices, Object data) {
+/**
+ * Konsistente Antwort an den Client. Ab sofort können mehrere Intents pro
+ * Benutzeranfrage abgearbeitet werden. Jeder Intent wird als separater Step
+ * zurückgegeben, sodass der Client MapActions sequentiell abspielen kann.
+ */
+public record ChatResponse(String requestId, List<Step> steps, String overallStatus) {
+    public record Step(IntentType intent, String status, String message, List<MapAction> mapActions,
+            List<Choice> choices) {
+    }
 }

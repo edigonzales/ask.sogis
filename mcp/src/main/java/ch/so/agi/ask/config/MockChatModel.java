@@ -22,14 +22,18 @@ class MockChatModel implements ChatModel {
 
     private static final String DEFAULT_RESPONSE = """
             {
-              \"requestId\": \"mock-request\",
-              \"intent\": \"noop\",
-              \"toolCalls\": [],
-              \"result\": {
-                \"status\": \"pending\",
-                \"items\": [],
-                \"message\": \"\"
-              }
+              "requestId": "mock-request",
+              "steps": [
+                {
+                  "intent": "noop",
+                  "toolCalls": [],
+                  "result": {
+                    "status": "pending",
+                    "items": [],
+                    "message": ""
+                  }
+                }
+              ]
             }
             """;
 
