@@ -4,13 +4,13 @@
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
   import { onMount } from 'svelte';
+  import { CHAT_OVERLAY_ID } from '$lib/constants';
   import type { ChatResponse } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
   type Role = 'bot' | 'user';
   type ChatMessage = { id: string; role: Role; text: string };
 
-  const overlayId = 'chat-overlay';
   let isOpen = true;
   let isTransitioning = false;
   let prompt = '';
@@ -91,7 +91,7 @@
 </script>
 
 {#if isOpen}
-  <div class="chat-overlay" id={overlayId}>
+  <div class="chat-overlay" id={CHAT_OVERLAY_ID}>
     <div class="chat-header">
       <h3>Chat with LLM</h3>
       <button
@@ -99,7 +99,7 @@
         type="button"
         on:click={toggleOverlay}
         aria-label="Close chat"
-        aria-controls={overlayId}
+        aria-controls={CHAT_OVERLAY_ID}
       >
         <CloseOutline size={24} aria-hidden="true" />
       </button>
@@ -141,7 +141,7 @@
     on:click={toggleOverlay}
     role="button"
     tabindex="0"
-    aria-controls={overlayId}
+    aria-controls={CHAT_OVERLAY_ID}
     aria-expanded={isOpen}
     aria-label={isOpen ? 'Close chat overlay' : 'Open chat overlay'}
     aria-pressed={isOpen}

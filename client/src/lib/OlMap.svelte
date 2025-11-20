@@ -21,6 +21,7 @@
   import proj4 from 'proj4';
   import Zoom from 'ol/control/Zoom';
   import BackgroundSelector from './BackgroundSelector.svelte';
+  import { CHAT_OVERLAY_ID } from '$lib/constants';
   import { mapActionBus } from '$lib/stores/mapActions';
   import { MapActionType } from '$lib/api/chat-response';
   import type {
@@ -117,11 +118,32 @@
     const view = map.getView();
     const animation: AnimationOptions = { duration: 350 };
     const coords = extractXY(payload.center);
+    const targetZoom =
+      typeof payload.zoom === 'number' && Number.isFinite(payload.zoom) ? payload.zoom : null;
+    const targetResolution = targetZoom !== null
+      ? view.getResolutionForZoom(targetZoom) ?? undefined
+      : view.getResolution();
     if (coords) {
-      animation.center = coords;
+      const overlayEl = document.getElementById(CHAT_OVERLAY_ID);
+      if (overlayEl) {
+        const mapRect = el?.getBoundingClientRect();
+        const overlayRect = overlayEl.getBoundingClientRect();
+        const blockedWidth = Math.max(
+          0,
+          Math.min(mapRect?.right ?? 0, overlayRect.right) - (mapRect?.left ?? 0)
+        );
+        if (blockedWidth > 0 && targetResolution) {
+          const offsetX = (blockedWidth / 2) * targetResolution;
+          animation.center = [coords[0] - offsetX, coords[1]];
+        } else {
+          animation.center = coords;
+        }
+      } else {
+        animation.center = coords;
+      }
     }
-    if (typeof payload.zoom === 'number' && Number.isFinite(payload.zoom)) {
-      animation.zoom = payload.zoom;
+    if (targetZoom !== null) {
+      animation.zoom = targetZoom;
     }
     view.animate(animation);
   }
