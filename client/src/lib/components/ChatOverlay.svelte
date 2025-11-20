@@ -3,7 +3,7 @@
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
-  import { onMount } from 'svelte';
+  import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import type { ChatResponse } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
@@ -19,6 +19,7 @@
     { id: crypto.randomUUID?.() ?? 'welcome', role: 'bot', text: 'Hello! How can I help you with the map today?' }
   ];
   let chatMessagesContainer: HTMLDivElement | null = null;
+  let lastScrolledMessageId: string | null = null;
 
   function toggleOverlay() {
     isTransitioning = true;
@@ -86,12 +87,22 @@
     }
   }
 
-  $: if (chatMessagesContainer) {
+  afterUpdate(() => {
+    if (!chatMessagesContainer) return;
+
+    const lastMessage = messages[messages.length - 1];
+
+    if (!lastMessage || lastMessage.id === lastScrolledMessageId) {
+      return;
+    }
+
+    lastScrolledMessageId = lastMessage.id;
+
     chatMessagesContainer.scrollTo({
       top: chatMessagesContainer.scrollHeight,
       behavior: 'smooth'
     });
-  }
+  });
 
   onMount(() => {
     // Placeholder for potential future initialization logic
@@ -225,6 +236,8 @@
 
   .chat-messages {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
     margin-bottom: 16px;
     padding: 8px;
@@ -238,6 +251,11 @@
     border-radius: 4px;
     max-width: 90%;
     line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
   }
 
   .bot-message {
