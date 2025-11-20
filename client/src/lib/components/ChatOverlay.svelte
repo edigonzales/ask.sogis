@@ -3,7 +3,7 @@
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
-  import { onMount } from 'svelte';
+  import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import type { ChatResponse } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
@@ -11,6 +11,7 @@
   type Role = 'bot' | 'user';
   type ChatMessage = { id: string; role: Role; text: string };
 
+  let chatMessagesContainer: HTMLDivElement;
   let isOpen = true;
   let isTransitioning = false;
   let prompt = '';
@@ -88,6 +89,17 @@
   onMount(() => {
     // Placeholder for potential future initialization logic
   });
+
+  afterUpdate(() => {
+    if (!chatMessagesContainer) {
+      return;
+    }
+
+    chatMessagesContainer.scrollTo({
+      top: chatMessagesContainer.scrollHeight,
+      behavior: 'smooth'
+    });
+  });
 </script>
 
 {#if isOpen}
@@ -104,7 +116,7 @@
         <CloseOutline size={24} aria-hidden="true" />
       </button>
     </div>
-    <div class="chat-messages" aria-live="polite">
+    <div class="chat-messages" aria-live="polite" bind:this={chatMessagesContainer}>
       {#each messages as message (message.id)}
         <div class={`message ${message.role === 'bot' ? 'bot-message' : 'user-message'}`}>
           {message.text}
