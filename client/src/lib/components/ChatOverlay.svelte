@@ -19,6 +19,8 @@
   let messages: ChatMessage[] = [
     { id: crypto.randomUUID?.() ?? 'welcome', role: 'bot', text: 'Hello! How can I help you with the map today?' }
   ];
+  let chatMessagesContainer: HTMLDivElement | null = null;
+  let lastScrolledMessageId: string | null = null;
 
   function toggleOverlay() {
     isTransitioning = true;
@@ -85,6 +87,23 @@
       sendMessage();
     }
   }
+
+  afterUpdate(() => {
+    if (!chatMessagesContainer) return;
+
+    const lastMessage = messages[messages.length - 1];
+
+    if (!lastMessage || lastMessage.id === lastScrolledMessageId) {
+      return;
+    }
+
+    lastScrolledMessageId = lastMessage.id;
+
+    chatMessagesContainer.scrollTo({
+      top: chatMessagesContainer.scrollHeight,
+      behavior: 'smooth'
+    });
+  });
 
   onMount(() => {
     // Placeholder for potential future initialization logic
@@ -229,6 +248,8 @@
 
   .chat-messages {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
     margin-bottom: 16px;
     padding: 8px;
@@ -242,6 +263,11 @@
     border-radius: 4px;
     max-width: 90%;
     line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
   }
 
   .bot-message {
