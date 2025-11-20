@@ -1,0 +1,3 @@
+- https://carbon-icons-svelte.onrender.com/
+- https://github.com/grundstuecksinformation/av-web-service/blob/master/src/main/java/ch/so/agi/cadastre/webservice/MainController.java#L290
+- https://svelte.carbondesignsystem.com/
