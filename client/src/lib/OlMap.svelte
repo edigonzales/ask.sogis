@@ -134,7 +134,7 @@
         );
         if (blockedWidth > 0 && targetResolution) {
           const offsetX = (blockedWidth / 2) * targetResolution;
-          animation.center = [coords[0] + offsetX, coords[1]];
+          animation.center = [coords[0] - offsetX, coords[1]];
         } else {
           animation.center = coords;
         }
