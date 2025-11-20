@@ -118,6 +118,11 @@
     const view = map.getView();
     const animation: AnimationOptions = { duration: 350 };
     const coords = extractXY(payload.center);
+    const targetZoom =
+      typeof payload.zoom === 'number' && Number.isFinite(payload.zoom) ? payload.zoom : null;
+    const targetResolution = targetZoom !== null
+      ? view.getResolutionForZoom(targetZoom) ?? undefined
+      : view.getResolution();
     if (coords) {
       const overlayEl = document.getElementById(CHAT_OVERLAY_ID);
       if (overlayEl) {
@@ -127,9 +132,8 @@
           0,
           Math.min(mapRect?.right ?? 0, overlayRect.right) - (mapRect?.left ?? 0)
         );
-        const resolution = view.getResolution();
-        if (blockedWidth > 0 && resolution) {
-          const offsetX = (blockedWidth / 2) * resolution;
+        if (blockedWidth > 0 && targetResolution) {
+          const offsetX = (blockedWidth / 2) * targetResolution;
           animation.center = [coords[0] + offsetX, coords[1]];
         } else {
           animation.center = coords;
@@ -138,8 +142,8 @@
         animation.center = coords;
       }
     }
-    if (typeof payload.zoom === 'number' && Number.isFinite(payload.zoom)) {
-      animation.zoom = payload.zoom;
+    if (targetZoom !== null) {
+      animation.zoom = targetZoom;
     }
     view.animate(animation);
   }
