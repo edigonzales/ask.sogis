@@ -18,6 +18,7 @@
   let messages: ChatMessage[] = [
     { id: crypto.randomUUID?.() ?? 'welcome', role: 'bot', text: 'Hello! How can I help you with the map today?' }
   ];
+  let chatMessagesContainer: HTMLDivElement | null = null;
 
   function toggleOverlay() {
     isTransitioning = true;
@@ -85,6 +86,13 @@
     }
   }
 
+  $: if (chatMessagesContainer) {
+    chatMessagesContainer.scrollTo({
+      top: chatMessagesContainer.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+
   onMount(() => {
     // Placeholder for potential future initialization logic
   });
@@ -104,7 +112,7 @@
         <CloseOutline size={24} aria-hidden="true" />
       </button>
     </div>
-    <div class="chat-messages" aria-live="polite">
+    <div class="chat-messages" aria-live="polite" bind:this={chatMessagesContainer}>
       {#each messages as message (message.id)}
         <div class={`message ${message.role === 'bot' ? 'bot-message' : 'user-message'}`}>
           {message.text}
