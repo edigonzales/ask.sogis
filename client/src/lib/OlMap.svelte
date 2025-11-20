@@ -301,8 +301,8 @@
       layers: backgroundLayers,
       view: new View({
         projection: projection,
-        center: [2616500, 1237000], // Center coordinate from Java code
-        zoom: 5, // Initial zoom level from Java code
+        center: [2606500, 1237000], // Center coordinate from Java code
+        zoom: 6, // Initial zoom level from Java code
         resolutions: resolutions
       })
     });

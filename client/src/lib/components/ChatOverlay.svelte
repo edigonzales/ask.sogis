@@ -84,9 +84,10 @@
   }
 
   function clearChatAndMap() {
-    messages = [createWelcomeMessage()];
-    prompt = '';
-    mapActionBus.clear();
+    window.alert("Hallo Welt.");
+    // messages = [createWelcomeMessage()];
+    // prompt = '';
+    // mapActionBus.clear();
   }
 
   function handleInputKeydown(event: KeyboardEvent) {
@@ -117,7 +118,7 @@
     <div class="chat-header">
       <div class="chat-toolbar" role="toolbar" aria-label="Chat actions">
         <button class="icon-button" type="button" on:click={clearChatAndMap} title="Clear chat & map">
-          <TrashCan size={20} aria-hidden="true" />
+          <TrashCan size={24} aria-hidden="true" />
           <span class="sr-only">Clear chat and map</span>
         </button>
       </div>
