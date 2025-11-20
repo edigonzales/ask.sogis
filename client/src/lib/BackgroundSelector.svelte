@@ -13,7 +13,7 @@
 
   function handleThumbnailClick(id) {
     console.log('BackgroundSelector dispatching selectionChange with:', id);
-    dispatch('selectionChange', { detail: id });
+    dispatch('selectionChange', id);
   }
 </script>
 
