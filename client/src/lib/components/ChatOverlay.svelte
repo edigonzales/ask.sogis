@@ -3,6 +3,7 @@
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
+  import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import type { ChatResponse } from '$lib/api/chat-response';
@@ -16,9 +17,14 @@
   let isTransitioning = false;
   let prompt = '';
   let isSending = false;
-  let messages: ChatMessage[] = [
-    { id: crypto.randomUUID?.() ?? 'welcome', role: 'bot', text: 'Hello! How can I help you with the map today?' }
-  ];
+  const createMessageId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  const createWelcomeMessage = () => ({
+    id: createMessageId(),
+    role: 'bot' as const,
+    text: 'Hello! How can I help you with the map today?'
+  });
+
+  let messages: ChatMessage[] = [createWelcomeMessage()];
 
   function toggleOverlay() {
     isTransitioning = true;
@@ -27,8 +33,6 @@
       isTransitioning = false;
     }, 300);
   }
-
-  const createMessageId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
   function appendMessage(role: Role, text: string) {
     messages = [...messages, { id: createMessageId(), role, text }];
@@ -79,6 +83,12 @@
     });
   }
 
+  function clearChatAndMap() {
+    messages = [createWelcomeMessage()];
+    prompt = '';
+    mapActionBus.clear();
+  }
+
   function handleInputKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
       event.preventDefault();
@@ -105,7 +115,12 @@
 {#if isOpen}
   <div class="chat-overlay" id={CHAT_OVERLAY_ID}>
     <div class="chat-header">
-      <h3>Chat with LLM</h3>
+      <div class="chat-toolbar" role="toolbar" aria-label="Chat actions">
+        <button class="icon-button" type="button" on:click={clearChatAndMap} title="Clear chat & map">
+          <TrashCan size={20} aria-hidden="true" />
+          <span class="sr-only">Clear chat and map</span>
+        </button>
+      </div>
       <button
         class="close-button"
         type="button"
@@ -201,10 +216,28 @@
     border-bottom: 1px solid #e0e0e0;
   }
 
-  .chat-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
+  .chat-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: #161616;
+    transition: background-color 0.2s;
+  }
+
+  .icon-button:hover,
+  .icon-button:focus-visible {
+    background-color: #e0e0e0;
   }
 
   .close-button {
@@ -316,6 +349,18 @@
 
   .icon:hover {
     background-color: #e0e0e0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
 
