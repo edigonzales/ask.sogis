@@ -26,4 +26,10 @@ curl --header "Content-Type: application/json" \
 - Lade karte "ch.afu..."
 
 ### uc 4
+- gehe zu ...
+- wie tief kann ich hier für eine erdwärmesonde bohren?
 
+### uc 5
+- gehe zur langendorfstrasse in solothurn
+-> 25 Treffer
+-> Wie umgehen? Entweder Strasse suchen und anzeigen oder wie ux/ui wenn mehrere Treffer?
