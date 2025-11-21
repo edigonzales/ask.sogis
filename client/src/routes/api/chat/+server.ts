@@ -1,41 +1,15 @@
-import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const POST: RequestHandler = async ({ request }) => {
-  // Consume the payload even though the mock response does not use it yet.
-  await request.json().catch(() => ({}));
+export const POST: RequestHandler = async ({ request, fetch }) => {
+  const backendResponse = await fetch('http://localhost:8080/api/chat', {
+    method: 'POST',
+    headers: request.headers,
+    body: request.body
+  });
 
-  const response = {
-    requestId: '1',
-    steps: [
-      {
-        intent: 'goto_address',
-        status: 'ok',
-        message: '1 Treffer gefunden.',
-        mapActions: [
-          {
-            type: 'setView',
-            payload: {
-              zoom: 17,
-              center: [2605899.0, 1229278.0, 2605899.0, 1229278.0],
-              crs: 'EPSG:2056'
-            }
-          },
-          {
-            type: 'addMarker',
-            payload: {
-              //style: 'pin-default',
-              coord: [2605899.0, 1229278.0, 2605899.0, 1229278.0],
-              id: 'addr-623490242',
-              label: 'Langendorfstrasse 19b, 4500 Solothurn'
-            }
-          }
-        ],
-        choices: []
-      }
-    ],
-    overallStatus: 'ok'
-  };
-
-  return json(response);
+  return new Response(backendResponse.body, {
+    status: backendResponse.status,
+    statusText: backendResponse.statusText,
+    headers: backendResponse.headers
+  });
 };
