@@ -11,3 +11,19 @@ curl --header "Content-Type: application/json" \
   --data '{"sessionId":"CA7AAAEB-5DBD-47E8-87DB-60FAB31DC150","userMessage":"Zeige mir die Adresse Langendorfrasse 19b."}' \
   http://localhost:8080/api/chat | python3 -m json.tool
 ```
+
+
+
+### uc 1
+- Zeige mir burgunderstrasse 19 in solothurn
+- Ah, ich meinte nummer 9
+
+### uc 2
+- zeige mir die gewässerschutzzonen in Grenchen
+
+### uc 3
+- welche karten zum thema wasser hast du?
+- Lade karte "ch.afu..."
+
+### uc 4
+
