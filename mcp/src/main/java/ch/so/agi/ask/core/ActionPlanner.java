@@ -56,8 +56,9 @@ public class ActionPlanner {
             var coord = (List<?>) item.get("coord"); // [x,y]
             var crs = (String) item.getOrDefault("crs", "EPSG:2056");
             var id = (String) item.getOrDefault("id", "addr");
+            var label = (String) item.getOrDefault("label", "");
             yield List.of(new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", crs)),
-                    new MapAction("addMarker", Map.of("id", "addr-" + id, "coord", coord, "style", "pin-default")));
+                    new MapAction("addMarker", Map.of("id", "addr-" + id, "coord", coord, "style", "pin-default", "label", label)));
         }
         case LOAD_LAYER -> {
             var layerId = (String) item.get("layerId");
