@@ -7,7 +7,8 @@ export enum IntentType {
 export enum MapActionType {
   SetView = 'setView',
   AddMarker = 'addMarker',
-  AddLayer = 'addLayer'
+  AddLayer = 'addLayer',
+  ClearMap = 'clearMap'
 }
 
 export type Coordinates = [number, number, ...number[]];

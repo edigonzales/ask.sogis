@@ -31,6 +31,7 @@
     AddLayerPayload,
     Coordinates
   } from '$lib/api/chat-response';
+  import TileWMS from 'ol/source/TileWMS';
 
   const BACKGROUND_OPTIONS = [
     { id: 'none', text: 'Kein Hintergrund', layerName: null },
@@ -195,6 +196,56 @@
     console.info('addLayer action received but not implemented yet', payload);
   }
 
+  function clearVectorLayers() {
+    if (!map) {
+      return;
+    }
+
+    map.getLayers().getArray().forEach((layer) => {
+      if (layer instanceof VectorLayer) {
+        const source = layer.getSource();
+        if (source instanceof VectorSource) {
+          source.clear();
+        }
+      }
+    });
+  }
+
+  function removeNonBackgroundTileLayers() {
+    if (!map) {
+      return;
+    }
+
+    const backgroundLayers = new Set(
+      Array.from(backgroundLayerMap.values()).filter(
+        (layer): layer is TileLayer<WMTSSource> => layer instanceof TileLayer
+      )
+    );
+
+    map
+      .getLayers()
+      .getArray()
+      .slice()
+      .forEach((layer) => {
+        if (!(layer instanceof TileLayer)) {
+          return;
+        }
+        if (backgroundLayers.has(layer)) {
+          return;
+        }
+
+        const source = layer.getSource();
+        if (source instanceof WMTSSource || source instanceof TileWMS) {
+          map?.removeLayer(layer);
+        }
+      });
+  }
+
+  function handleClearMap() {
+    clearVectorLayers();
+    removeNonBackgroundTileLayers();
+  }
+
   function handleMapAction(action: MapAction) {
     const type = action.type as MapActionType | string;
     switch (type) {
@@ -206,6 +257,9 @@
         break;
       case MapActionType.AddLayer:
         handleAddLayer(action.payload as AddLayerPayload);
+        break;
+      case MapActionType.ClearMap:
+        handleClearMap();
         break;
       default:
         console.warn('Unknown map action type', action);

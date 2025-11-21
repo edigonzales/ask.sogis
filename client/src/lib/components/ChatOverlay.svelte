@@ -7,6 +7,7 @@
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import type { ChatResponse } from '$lib/api/chat-response';
+  import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
   type Role = 'bot' | 'user';
@@ -84,10 +85,14 @@
   }
 
   function clearChatAndMap() {
-    window.alert("Hallo Welt.");
-    // messages = [createWelcomeMessage()];
-    // prompt = '';
-    // mapActionBus.clear();
+    messages = [createWelcomeMessage()];
+    prompt = '';
+    mapActionBus.dispatch([
+      {
+        type: MapActionType.ClearMap,
+        payload: {}
+      }
+    ]);
   }
 
   function handleInputKeydown(event: KeyboardEvent) {
