@@ -14,6 +14,8 @@
   type ChatMessage = { id: string; role: Role; text: string };
 
   let chatMessagesContainer: HTMLDivElement;
+  const createSessionId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  let sessionId = createSessionId();
   let isOpen = true;
   let isTransitioning = false;
   let prompt = '';
@@ -55,7 +57,7 @@
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt: trimmed })
+        body: JSON.stringify({ sessionId, userMessage: trimmed })
       });
 
       if (!response.ok) {
@@ -87,6 +89,7 @@
   function clearChatAndMap() {
     messages = [createWelcomeMessage()];
     prompt = '';
+    sessionId = createSessionId();
     mapActionBus.dispatch([
       {
         type: MapActionType.ClearMap,
