@@ -1,10 +1,14 @@
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, fetch }) => {
+  const { sessionId, userMessage } = await request.json();
+
   const backendResponse = await fetch('http://localhost:8080/api/chat', {
     method: 'POST',
-    headers: request.headers,
-    body: request.body,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ sessionId, userMessage }),
     // required for streaming bodies in Node's undici implementation
     duplex: 'half'
   });
