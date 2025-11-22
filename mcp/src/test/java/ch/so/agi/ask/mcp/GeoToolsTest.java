@@ -44,4 +44,29 @@ class GeoToolsTest {
         List<Map<String, Object>> items = geoTools.mapResults(root.path("results"));
         assertTrue(items.isEmpty());
     }
+
+    @Test
+    void filterExactMatches_prefersStreetAndHouseNumber() {
+        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+
+        List<Map<String, Object>> items = List.of(
+                Map.of("label", "Burgunderstrasse 9, 4500 Solothurn"),
+                Map.of("label", "Burgunderstrasse 19, 4500 Solothurn")
+        );
+
+        List<Map<String, Object>> matches = geoTools.filterExactMatches("burgunderstrasse 9, solothurn", items);
+
+        assertEquals(1, matches.size());
+        assertEquals("Burgunderstrasse 9, 4500 Solothurn", matches.get(0).get("label"));
+    }
+
+    @Test
+    void filterExactMatches_returnsEmptyForEmptyQuery() {
+        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+        List<Map<String, Object>> items = List.of(
+                Map.of("label", "Teststrasse 1, 4500 Solothurn")
+        );
+
+        assertTrue(geoTools.filterExactMatches(" ", items).isEmpty());
+    }
 }
