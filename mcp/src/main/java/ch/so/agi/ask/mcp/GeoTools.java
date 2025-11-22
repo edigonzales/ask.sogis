@@ -69,6 +69,10 @@ public class GeoTools {
 
             JsonNode root = objectMapper.readTree(body);
             List<Map<String, Object>> items = mapResults(root.path("results"));
+            List<Map<String, Object>> exactMatches = filterExactMatches(q, items);
+            if (!exactMatches.isEmpty()) {
+                items = exactMatches;
+            }
 
             String message = items.isEmpty()
                     ? "Keine Treffer gefunden."
@@ -116,6 +120,32 @@ public class GeoTools {
         return items;
     }
 
+    List<Map<String, Object>> filterExactMatches(String query, List<Map<String, Object>> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+
+        String normalizedQuery = normalizeStreetAndNumber(query);
+        if (normalizedQuery.isBlank()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> matches = new ArrayList<>();
+        for (Map<String, Object> item : items) {
+            Object labelValue = item.get("label");
+            if (!(labelValue instanceof String label)) {
+                continue;
+            }
+
+            String normalizedLabel = normalizeStreetAndNumber(label);
+            if (!normalizedLabel.isBlank() && normalizedLabel.equals(normalizedQuery)) {
+                matches.add(item);
+            }
+        }
+
+        return matches;
+    }
+
     private Optional<Map<String, Object>> createItemFromFeature(JsonNode featureNode) {
         if (featureNode == null || featureNode.isMissingNode()) {
             return Optional.empty();
@@ -147,5 +177,15 @@ public class GeoTools {
         }
         String label = display.replace("(Adresse)", "");
         return label.replaceAll("\\s+", " ").trim();
+    }
+
+    private String normalizeStreetAndNumber(String input) {
+        if (input == null) {
+            return "";
+        }
+
+        String base = input.split(",", 2)[0];
+        base = base.replaceAll("\\s+", " ").trim();
+        return base.toLowerCase();
     }
 }
