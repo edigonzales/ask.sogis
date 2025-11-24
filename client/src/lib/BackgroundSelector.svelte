@@ -5,7 +5,7 @@
   const dispatch = createEventDispatcher();
 
   const BACKGROUND_OPTIONS = [
-    { id: 'none', text: 'Kein Hintergrund', label: 'No background', img: '/none.png' },
+    { id: 'none', text: 'Kein Hintergrund', label: 'Kein Hintergrund', img: '/none.png' },
     { id: 'sw', text: 'Hintergrundkarte s/w', label: 'Karte SW', img: '/sw.png' },
     { id: 'color', text: 'Hintergrundkarte farbig', label: 'Karte farbig', img: '/farbig.png' },
     { id: 'ortho', text: 'Hintergrundkarte Luftbild', label: 'Luftbild', img: '/ortho.png' }
@@ -18,7 +18,6 @@
 </script>
 
 <div class="background-selector">
-  <p class="selector-title">Hintergrund wählen</p>
   <div class="background-selector-thumbnails">
     {#each BACKGROUND_OPTIONS as option}
       <div class="thumbnail-item">
@@ -55,7 +54,6 @@
     margin: 0;
     font-size: 12px;
     font-weight: 600;
-    color: #1c4966;
   }
 
   .background-selector-thumbnails {
@@ -73,7 +71,6 @@
   .thumbnail-label {
     font-size: 12px;
     font-weight: 600;
-    color: #1890b2;
   }
 
   .thumbnail-button {
@@ -98,10 +95,10 @@
   }
 
   .thumbnail-img {
-    width: 100%;
-    height: auto;
+    width: 68px;
+    height: 42.75px;
     max-height: 80px;
-    object-fit: contain;
+    object-fit: fill;
     border-radius: 2px;
     display: block;
   }
