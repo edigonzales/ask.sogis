@@ -50,12 +50,6 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   }
 
-  .selector-title {
-    margin: 0;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
   .background-selector-thumbnails {
     display: flex;
     gap: 8px;
