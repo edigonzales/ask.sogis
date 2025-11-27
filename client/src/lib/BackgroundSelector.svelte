@@ -106,7 +106,7 @@
   }
 
   .thumbnail-button:active {
-    transform: translateY(1px);
+    /*transform: translateY(1px);*/
   }
 
   .thumbnail-button.active {
