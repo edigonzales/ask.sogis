@@ -75,18 +75,18 @@
   .background-selector-thumbnails {
     display: flex;
     gap: 10px;
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.92);
+    /*padding: 8px 10px;*/
+    background: rgba(255, 255, 255, 0);
     border-radius: 10px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    /*box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);*/
   }
 
   .thumbnail-button {
     position: relative;
-    width: 108px;
-    height: 72px;
+    width: 124px;
+    height: 80px;
     border: 2px solid #4a4a4a;
-    border-radius: 8px;
+    /*border-radius: 8px;*/
     padding: 0;
     margin: 0;
     background: #e9ecef;
@@ -97,12 +97,12 @@
 
   .thumbnail-button:hover {
     border-color: #0f62fe;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    /*box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);*/
   }
 
   .thumbnail-button:focus-visible {
-    outline: 2px solid #0f62fe;
-    outline-offset: 3px;
+    /*outline: 2px solid #0f62fe;*/
+    /*outline-offset: 3px;*/
   }
 
   .thumbnail-button:active {
@@ -110,14 +110,14 @@
   }
 
   .thumbnail-button.active {
-    border-color: #d62d20;
-    box-shadow: 0 0 0 2px rgba(214, 45, 32, 0.25);
+    /*border-color: #d62d20;*/
+    border-color: #0f62fe;
+    /*box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25);*/
   }
 
   .thumbnail-button.collapsed {
     width: 124px;
     height: 80px;
-    padding: 2px;
     background: #f4f4f4;
     border-color: #5a5a5a;
   }
