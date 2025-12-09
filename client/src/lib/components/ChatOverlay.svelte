@@ -6,7 +6,7 @@
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
-  import type { ChatResponse } from '$lib/api/chat-response';
+  import type { ChatResponse, MapAction } from '$lib/api/chat-response';
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
@@ -75,15 +75,21 @@
   }
 
   function handleChatResponse(response: ChatResponse) {
+    const aggregatedActions: MapAction[] = [];
+
     response.steps?.forEach((step) => {
       if (step.message) {
         appendMessage('bot', step.message);
       }
 
       if (step.mapActions?.length) {
-        mapActionBus.dispatch(step.mapActions);
+        aggregatedActions.push(...step.mapActions);
       }
     });
+
+    if (aggregatedActions.length) {
+      mapActionBus.dispatch(aggregatedActions);
+    }
   }
 
   async function clearChatAndMap() {
