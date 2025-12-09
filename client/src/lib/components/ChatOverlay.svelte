@@ -86,10 +86,31 @@
     });
   }
 
-  function clearChatAndMap() {
+  async function clearChatAndMap() {
+    const previousSessionId = sessionId;
     messages = [createWelcomeMessage()];
     prompt = '';
     sessionId = createSessionId();
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId: previousSessionId })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error
+        ? error.message
+        : 'Unexpected error while clearing the chat history on the server.';
+      appendMessage('bot', `⚠️ ${message}`);
+    }
+
     mapActionBus.dispatch([
       {
         type: MapActionType.ClearMap,

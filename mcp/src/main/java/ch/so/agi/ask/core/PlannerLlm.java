@@ -21,6 +21,7 @@ import java.util.*;
 public class PlannerLlm {
 
     private final ChatClient chatClient;
+    private final ChatMemoryStore chatMemoryStore;
 
     private static final String SYSTEM_PROMPT = """
             Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene
@@ -102,8 +103,9 @@ public class PlannerLlm {
             IntentType.LOAD_LAYER.id(),
             McpToolCapability.LAYERS_SEARCH.id());
 
-    public PlannerLlm(ChatClient chatClient) {
+    public PlannerLlm(ChatClient chatClient, ChatMemoryStore chatMemoryStore) {
         this.chatClient = chatClient;
+        this.chatMemoryStore = chatMemoryStore;
     }
 
     /**
@@ -112,10 +114,18 @@ public class PlannerLlm {
      * ToolCalls und initialem Result-Status {@code pending}).
      */
     public PlannerOutput plan(String sessionId, String userMessage) {
-        List<Message> messages = List.of(new SystemMessage(SYSTEM_PROMPT), new UserMessage(userMessage));
+        List<Message> history = new ArrayList<>(chatMemoryStore.getMessages(sessionId));
+        UserMessage latestUserMessage = new UserMessage(userMessage);
+
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage(SYSTEM_PROMPT));
+        messages.addAll(history);
+        messages.add(latestUserMessage);
 
         var prompt = new Prompt(messages);
         var content = chatClient.prompt(prompt).call().content(); // JSON string
+
+        chatMemoryStore.appendMessages(sessionId, List.of(latestUserMessage, new AssistantMessage(content)));
 
         // Deserialisieren in PlannerOutput (ObjectMapper empfohlen)
         return Json.read(content, PlannerOutput.class);
