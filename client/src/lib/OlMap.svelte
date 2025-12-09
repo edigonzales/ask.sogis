@@ -112,9 +112,9 @@
     return [x, y];
   }
 
-  function handleSetView(payload: SetViewPayload) {
+  function handleSetView(payload: SetViewPayload): Promise<void> {
     if (!map) {
-      return;
+      return Promise.resolve();
     }
     const view = map.getView();
     const animation: AnimationOptions = { duration: 350 };
@@ -146,7 +146,15 @@
     if (targetZoom !== null) {
       animation.zoom = targetZoom;
     }
-    view.animate(animation);
+
+    return new Promise((resolve) => {
+      if (!animation.center && typeof animation.zoom !== 'number') {
+        resolve();
+        return;
+      }
+
+      view.animate(animation, () => resolve());
+    });
   }
 
   function createMarkerStyle(label: string) {
@@ -166,15 +174,15 @@
     });
   }
 
-  function handleAddMarker(payload: AddMarkerPayload) {
+  function handleAddMarker(payload: AddMarkerPayload): Promise<void> {
     if (!markerSource) {
-      return;
+      return Promise.resolve();
     }
 
     const coords = extractXY(payload.coord);
     if (!coords) {
       console.warn('Invalid marker coordinates', payload.coord);
-      return;
+      return Promise.resolve();
     }
 
     const id = payload.id ?? crypto.randomUUID?.() ?? `marker-${Date.now()}`;
@@ -190,10 +198,12 @@
     feature.setId(id);
     feature.setStyle(createMarkerStyle(label));
     markerSource.addFeature(feature);
+    return Promise.resolve();
   }
 
-  function handleAddLayer(payload: AddLayerPayload) {
+  function handleAddLayer(payload: AddLayerPayload): Promise<void> {
     console.info('addLayer action received but not implemented yet', payload);
+    return Promise.resolve();
   }
 
   function clearVectorLayers() {
@@ -241,30 +251,37 @@
       });
   }
 
-  function handleClearMap() {
+  function handleClearMap(): Promise<void> {
     clearVectorLayers();
     removeNonBackgroundTileLayers();
+    return Promise.resolve();
   }
 
-  function handleMapAction(action: MapAction) {
+  function handleMapAction(action: MapAction): Promise<void> {
     const type = action.type as MapActionType | string;
     switch (type) {
       case MapActionType.SetView:
-        handleSetView(action.payload as SetViewPayload);
-        break;
+        return handleSetView(action.payload as SetViewPayload);
       case MapActionType.AddMarker:
-        handleAddMarker(action.payload as AddMarkerPayload);
-        break;
+        return handleAddMarker(action.payload as AddMarkerPayload);
       case MapActionType.AddLayer:
-        handleAddLayer(action.payload as AddLayerPayload);
-        break;
+        return handleAddLayer(action.payload as AddLayerPayload);
       case MapActionType.ClearMap:
-        handleClearMap();
-        break;
+        return handleClearMap();
       default:
         console.warn('Unknown map action type', action);
+        return Promise.resolve();
     }
   }
+
+  async function processMapActionsSequentially(actions: MapAction[]) {
+    for (const action of actions) {
+      await handleMapAction(action);
+    }
+    mapActionBus.clear();
+  }
+
+  let actionProcessingQueue: Promise<void> = Promise.resolve();
 
   onMount(() => {
     // Define the custom projection EPSG:2056 (Swiss CH1903+ / LV95)
@@ -372,8 +389,12 @@
       if (!actions.length) {
         return;
       }
-      actions.forEach((action) => handleMapAction(action));
-      mapActionBus.clear();
+
+      actionProcessingQueue = actionProcessingQueue
+        .then(() => processMapActionsSequentially(actions))
+        .catch((error) => {
+          console.error('Error while processing map actions', error);
+        });
     });
 
     // Set the initial background after map is created
