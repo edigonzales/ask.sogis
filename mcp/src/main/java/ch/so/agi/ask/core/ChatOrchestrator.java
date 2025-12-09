@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.stereotype.Service;
 
 import ch.so.agi.ask.model.ChatRequest;
@@ -23,11 +24,14 @@ public class ChatOrchestrator {
     private final PlannerLlm plannerLlm;
     private final McpClient mcpClient;
     private final ActionPlanner actionPlanner;
+    private final ChatMemoryStore chatMemoryStore;
 
-    public ChatOrchestrator(PlannerLlm plannerLlm, McpClient mcpClient, ActionPlanner actionPlanner) {
+    public ChatOrchestrator(PlannerLlm plannerLlm, McpClient mcpClient, ActionPlanner actionPlanner,
+            ChatMemoryStore chatMemoryStore) {
         this.plannerLlm = plannerLlm;
         this.mcpClient = mcpClient;
         this.actionPlanner = actionPlanner;
+        this.chatMemoryStore = chatMemoryStore;
     }
 
     /**
@@ -43,20 +47,24 @@ public class ChatOrchestrator {
         System.out.println(plan);
 
         // 2) ToolCalls je Step ausführen (MCP) und ActionPlans erzeugen
-        List<ChatResponse.Step> steps = buildSteps(plan);
+        List<ChatResponse.Step> steps = buildSteps(req.sessionId(), plan);
 
         // 3) Finale ChatResponse inklusive Gesamtstatus
         return new ChatResponse(plan.requestId(), steps, aggregateStatus(steps));
     }
 
-    private List<ChatResponse.Step> buildSteps(PlannerOutput plan) {
+    public void clearSession(String sessionId) {
+        chatMemoryStore.deleteSession(sessionId);
+    }
+
+    private List<ChatResponse.Step> buildSteps(String sessionId, PlannerOutput plan) {
         List<ChatResponse.Step> steps = new ArrayList<>();
         if (plan.steps() == null) {
             return steps;
         }
 
         for (PlannerOutput.Step step : plan.steps()) {
-            PlannerOutput.Result aggResult = executeToolCalls(step);
+            PlannerOutput.Result aggResult = executeToolCalls(sessionId, step);
             System.out.println(aggResult);
 
             ActionPlan ap = actionPlanner.toActionPlan(step.intent(), aggResult);
@@ -72,7 +80,7 @@ public class ChatOrchestrator {
      * vom Tool gesetzte Status (z. B. {@code success}, {@code needs_clarification})
      * erhalten, sodass der ActionPlanner konsistente Entscheidungen treffen kann.
      */
-    private PlannerOutput.Result executeToolCalls(PlannerOutput.Step step) {
+    private PlannerOutput.Result executeToolCalls(String sessionId, PlannerOutput.Step step) {
         if (step == null) {
             return null;
         }
@@ -85,6 +93,8 @@ public class ChatOrchestrator {
         PlannerOutput.Result last = current;
         for (PlannerOutput.ToolCall tc : step.toolCalls()) {
             last = mcpClient.execute(tc.capabilityId(), tc.args());
+            chatMemoryStore.appendMessage(sessionId,
+                    new AssistantMessage("Tool %s result: %s".formatted(tc.capabilityId().id(), Json.write(last))));
         }
         return last;
     }

@@ -15,4 +15,12 @@ public class Json {
             throw new RuntimeException("Planner JSON parse failed", e);
         }
     }
+
+    public static String write(Object value) {
+        try {
+            return MAPPER.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new RuntimeException("JSON serialization failed", e);
+        }
+    }
 }
