@@ -18,9 +18,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
-public class GeoTools {
+public class GeolocationTools {
 
-    private static final Logger log = LoggerFactory.getLogger(GeoTools.class);
+    private static final Logger log = LoggerFactory.getLogger(GeolocationTools.class);
     private static final String BASE_URL = "https://geo.so.ch/api/search/v2/";
     private static final String FILTER_VALUE = "ch.so.agi.av.gebaeudeadressen.gebaeudeeingaenge";
     private static final int DEFAULT_LIMIT = 25;
@@ -28,29 +28,29 @@ public class GeoTools {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public GeoTools(RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
+    public GeolocationTools(RestClient.Builder restClientBuilder, ObjectMapper objectMapper) {
         this.restClient = restClientBuilder
                 .baseUrl(BASE_URL)
                 .build();
         this.objectMapper = objectMapper;
     }
 
-    public record GeoResult(
+    public record GeolocationResult(
             String status,
             List<Map<String,Object>> items,
             String message
     ) implements ToolResult {}
 
     @McpTool(
-            name = "geo.geocode",
+            name = "geolocation.geocode",
             description = "Geocoder for Swiss Solothurn addresses using the geo.so.ch API."
     )
-    public GeoResult geocode(Map<String, Object> args) {
+    public GeolocationResult geocode(Map<String, Object> args) {
         String q = (String) args.getOrDefault("q", "");
-        log.info("MCP geo-geocode called with q={}", q);
+        log.info("MCP geolocation.geocode called with q={}", q);
 
         if (q == null || q.isBlank()) {
-            return new GeoResult(
+            return new GeolocationResult(
                     "error",
                     List.of(),
                     "Parameter 'q' darf nicht leer sein."
@@ -78,28 +78,28 @@ public class GeoTools {
                     ? "Keine Treffer gefunden."
                     : String.format("%d Treffer gefunden.", items.size());
 
-            return new GeoResult(
+            return new GeolocationResult(
                     "ok",
                     items,
                     message
             );
         } catch (RestClientResponseException e) {
             log.warn("Geocoder call failed with status {}", e.getStatusCode(), e);
-            return new GeoResult(
+            return new GeolocationResult(
                     "error",
                     List.of(),
                     "Geocoder-Antwort schlug fehl (HTTP " + e.getStatusCode().value() + ")."
             );
         } catch (RestClientException e) {
             log.error("Geocoder-Aufruf fehlgeschlagen", e);
-            return new GeoResult(
+            return new GeolocationResult(
                     "error",
                     List.of(),
                     "Geocoder konnte nicht erreicht werden."
             );
         } catch (IOException e) {
             log.error("Fehler beim Lesen der Geocoder-Antwort", e);
-            return new GeoResult(
+            return new GeolocationResult(
                     "error",
                     List.of(),
                     "Antwort des Geocoders konnte nicht verarbeitet werden."

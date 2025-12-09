@@ -11,7 +11,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class GeoToolsTest {
+class GeolocationToolsTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -21,9 +21,9 @@ class GeoToolsTest {
                 {"results":[{"feature":{"bbox":[2605899,1229278,2605899,1229278],"display":"Langendorfstrasse 19b, 4500 Solothurn (Adresse)","feature_id":"623490242","srid":"EPSG:2056"}}]}
                 """;
         JsonNode root = mapper.readTree(json);
-        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+        GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
-        List<Map<String, Object>> items = geoTools.mapResults(root.path("results"));
+        List<Map<String, Object>> items = geolocationTools.mapResults(root.path("results"));
 
         assertEquals(1, items.size());
         Map<String, Object> item = items.get(0);
@@ -39,22 +39,22 @@ class GeoToolsTest {
                 {"results":[{"feature":{"display":"", "feature_id":null}}]}
                 """;
         JsonNode root = mapper.readTree(json);
-        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+        GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
-        List<Map<String, Object>> items = geoTools.mapResults(root.path("results"));
+        List<Map<String, Object>> items = geolocationTools.mapResults(root.path("results"));
         assertTrue(items.isEmpty());
     }
 
     @Test
     void filterExactMatches_prefersStreetAndHouseNumber() {
-        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+        GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
         List<Map<String, Object>> items = List.of(
                 Map.of("label", "Burgunderstrasse 9, 4500 Solothurn"),
                 Map.of("label", "Burgunderstrasse 19, 4500 Solothurn")
         );
 
-        List<Map<String, Object>> matches = geoTools.filterExactMatches("burgunderstrasse 9, solothurn", items);
+        List<Map<String, Object>> matches = geolocationTools.filterExactMatches("burgunderstrasse 9, solothurn", items);
 
         assertEquals(1, matches.size());
         assertEquals("Burgunderstrasse 9, 4500 Solothurn", matches.get(0).get("label"));
@@ -62,11 +62,11 @@ class GeoToolsTest {
 
     @Test
     void filterExactMatches_returnsEmptyForEmptyQuery() {
-        GeoTools geoTools = new GeoTools(RestClient.builder(), mapper);
+        GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
         List<Map<String, Object>> items = List.of(
                 Map.of("label", "Teststrasse 1, 4500 Solothurn")
         );
 
-        assertTrue(geoTools.filterExactMatches(" ", items).isEmpty());
+        assertTrue(geolocationTools.filterExactMatches(" ", items).isEmpty());
     }
 }

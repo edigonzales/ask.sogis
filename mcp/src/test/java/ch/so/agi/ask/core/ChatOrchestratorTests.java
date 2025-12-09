@@ -39,7 +39,7 @@ class ChatOrchestratorTests {
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
                         Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                 new PlannerOutput.Result("pending", List.of(), "Adresse wird gesucht"));
 
@@ -50,7 +50,7 @@ class ChatOrchestratorTests {
         when(planner.plan("sess-1", "Bitte zentrieren und Layer laden"))
                 .thenReturn(new PlannerOutput("req-1", List.of(gotoStep, layerStep)));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEO_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("coord", List.of(2609767.1, 1228437.4), "id", "7568", "crs", "EPSG:2056")),
                         "Adresse Langendorfstrasse 19b zentriert."));
@@ -81,12 +81,12 @@ class ChatOrchestratorTests {
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE, Map.of("q", "Solothurn"))),
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE, Map.of("q", "Solothurn"))),
                 new PlannerOutput.Result("pending", List.of(), null));
 
         when(planner.plan(anyString(), anyString())).thenReturn(new PlannerOutput("req-2", List.of(gotoStep)));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEO_GEOCODE), anyMap())).thenReturn(new PlannerOutput.Result(
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap())).thenReturn(new PlannerOutput.Result(
                 "ok",
                 List.of(Map.of("id", "opt-1", "label", "Solothurn Stadt", "coord", List.of(2608000d, 1229000d)),
                         Map.of("id", "opt-2", "label", "Solothurn Kanton", "coord", List.of(2610000d, 1230000d))),
@@ -111,13 +111,13 @@ class ChatOrchestratorTests {
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
                                 Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
         var followUpPlan = new PlannerOutput("req-2",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
                                 Map.of("q", "Langendorfstrasse 9, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
@@ -126,7 +126,7 @@ class ChatOrchestratorTests {
         when(chatClient.prompt(promptCaptor.capture()).call().content())
                 .thenReturn(Json.write(firstPlan), Json.write(followUpPlan));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEO_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("coord", List.of(2609767.1, 1228437.4), "id", "7568", "crs", "EPSG:2056",
                                 "label", "Langendorfstrasse 19b, Solothurn")),
@@ -144,7 +144,7 @@ class ChatOrchestratorTests {
         assertThat(secondPromptMessages.stream().filter(m -> !(m instanceof SystemMessage)).map(this::messageText)
                 .anyMatch(content -> content.contains("Langendorfstrasse 19b"))).isTrue();
         assertThat(secondPromptMessages.stream().filter(m -> !(m instanceof SystemMessage)).map(this::messageText)
-                .anyMatch(content -> content.contains("Tool geo.geocode result"))).isTrue();
+                .anyMatch(content -> content.contains("Tool geolocation.geocode result"))).isTrue();
     }
 
     @Test
@@ -158,13 +158,13 @@ class ChatOrchestratorTests {
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
                                 Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
         var secondPlan = new PlannerOutput("req-2",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEO_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
                                 Map.of("q", "Langendorfstrasse 9, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
@@ -173,7 +173,7 @@ class ChatOrchestratorTests {
         when(chatClient.prompt(promptCaptor.capture()).call().content())
                 .thenReturn(Json.write(firstPlan), Json.write(secondPlan));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEO_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("id", "7568", "coord", List.of(2609767.1, 1228437.4), "crs", "EPSG:2056")),
                         "Adresse gefunden"));

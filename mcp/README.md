@@ -15,7 +15,7 @@ sequenceDiagram
     participant P as PlannerLlm<br/>(Spring AI ChatClient)
     participant M as McpClient
     participant R as ToolRegistry<br/>(SpringMcpToolRegistry)
-    participant GT as GeoTools<br/>@McpTool
+    participant GT as GeolocationTools<br/>@McpTool
     participant LT as LayerTools<br/>@McpTool
     participant A as ActionPlanner
 
@@ -32,9 +32,9 @@ sequenceDiagram
             O->>M: execute(capabilityId, args)
             M->>R: execute(capabilityId, args)
 
-            alt capabilityId == "geo-geocode"
+            alt capabilityId == "geolocation.geocode"
                 R->>GT: geocode(args)
-                GT-->>R: GeoResult(status, items[], message)
+                GT-->>R: GeolocationResult(status, items[], message)
             else capabilityId == "layers-search"
                 R->>LT: searchLayers(args)
                 LT-->>R: LayerResult(status, items[], message)
@@ -73,7 +73,7 @@ sequenceDiagram
 - Übergibt Intent und aggregierte Ergebnisse an den ActionPlanner und baut die finale `ChatResponse` für den Client.
 
 ### ToolRegistry (SpringMcpToolRegistry)
-- Kapselt die registrierten MCP-Tools (z. B. GeoTools, LayerTools) und stellt sie dem MCP-Client zur Verfügung.
+- Kapselt die registrierten MCP-Tools (z. B. GeolocationTools, LayerTools) und stellt sie dem MCP-Client zur Verfügung.
 - Führt die vom Planner erzeugten `toolCalls` aus, validiert Parameter und erzeugt konsistente `Result`-Objekte für den Orchestrator.
 - Handhabt Fehlerfälle (unbekannte Tools, fehlerhafte Parameter) und liefert entsprechende Statusinformationen zurück.
 
@@ -132,4 +132,4 @@ sequenceDiagram
 ## Frontend-Backend-Zusammenspiel
 - **Svelte-Client**: Stellt die Chatoberfläche bereit, verwaltet die laufende Sitzung (`sessionId`) und verarbeitet eingehende `ChatResponse`-Nachrichten. Führt `mapActions` unmittelbar im Kartenwidget aus und zeigt `choices` zur Interaktion an. Jede Nutzeraktion löst einen POST auf `/api/chat` mit aktueller Unterhaltungshistorie aus.
 - **Spring-Boot-Backend**: Bietet den REST-Endpunkt `/api/chat`, orchestriert die Kommunikation mit dem PlannerLlm, ToolRegistry und ActionPlanner. Über den MCP-Client werden deklarierte MCP-Funktionen (z. B. Geocoding, Layersuche) aufgerufen, deren Ergebnisse in strukturierte Antworten für den Client eingebettet werden.
-- **MCP-Funktionen**: Sind als Spring-Beans annotiert (`@McpTool`) und liefern Domänenfunktionen wie `geo-geocode` oder `layers-search`. Der Orchestrator nutzt sie, um auf externe Geodaten oder Layer-Metadaten zuzugreifen, und übersetzt die Resultate in `mapActions` und `choices`, die der Svelte-Client versteht.
+- **MCP-Funktionen**: Sind als Spring-Beans annotiert (`@McpTool`) und liefern Domänenfunktionen wie `geolocation.geocode` oder `layers-search`. Der Orchestrator nutzt sie, um auf externe Geodaten oder Layer-Metadaten zuzugreifen, und übersetzt die Resultate in `mapActions` und `choices`, die der Svelte-Client versteht.
