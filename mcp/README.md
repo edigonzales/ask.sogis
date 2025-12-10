@@ -1,6 +1,10 @@
 # ask.sogis
 
-- https://www.danvega.dev/blog/cyc-mcp-server-spring-ai
+## todo
+
+- x Treffer: Aufklappbar mit Antwort (raw).
+
+
 
 
 ## Architekturüberblick
