@@ -60,6 +60,7 @@ public class ChatOrchestrator {
 
     public void clearSession(String sessionId) {
         chatMemoryStore.deleteSession(sessionId);
+        pendingChoiceStore.clear(sessionId);
     }
 
     private List<ChatResponse.Step> buildSteps(String sessionId, PlannerOutput plan) {
