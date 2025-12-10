@@ -67,6 +67,19 @@ public class ActionPlanner {
             yield List.of(
                     new MapAction("addLayer", Map.of("id", layerId, "type", type, "source", source, "visible", true)));
         }
+        case OEREB_EXTRACT -> {
+            var egrid = (String) Optional.ofNullable(item.get("egrid")).orElse(item.get("id"));
+            var url = (String) item.getOrDefault("extractUrl", "");
+            List<MapAction> actions = new ArrayList<>();
+            var coord = (List<?>) item.get("coord");
+            if (coord != null) {
+                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 18, "crs", "EPSG:2056")));
+                actions.add(new MapAction("addMarker",
+                        Map.of("id", "oereb-" + egrid, "coord", coord, "style", "pin-default", "label", item.get("label"))));
+            }
+            actions.add(new MapAction("showOerebExtract", Map.of("egrid", egrid, "url", url)));
+            yield actions;
+        }
         default -> List.of();
         };
     }

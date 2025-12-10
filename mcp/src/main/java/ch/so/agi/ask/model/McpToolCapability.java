@@ -9,7 +9,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
  */
 public enum McpToolCapability {
     GEOLOCATION_GEOCODE("geolocation.geocode"),
-    LAYERS_SEARCH("layers.search");
+    LAYERS_SEARCH("layers.search"),
+    OEREB_EGRID_BY_XY("oereb.egridByXY"),
+    OEREB_EXTRACT_BY_ID("oereb.extractById");
 
     private final String id;
 
