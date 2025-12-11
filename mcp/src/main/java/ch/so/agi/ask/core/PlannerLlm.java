@@ -103,11 +103,8 @@ public class PlannerLlm {
                   - "oereb_extract"   => Hole einen ÖREB-Auszug für ein Grundstück.
                 - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
                   in der gewünschten Ausführungsreihenfolge an.
-                - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
-                  - "%s"    => Wandelt einen Adress-String in Koordinaten um.
-                  - "%s"  => Findet passende Layer zu einem Thema.
-                  - "oereb.egridByXY"    => Findet EGRID-Kandidaten für eine Koordinate.
-                  - "oereb.extractById"  => Erstellt einen ÖREB-Auszug für eine EGRID-Auswahl.
+                - Du planst MINIMALE Aufrufe gemäss unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
+                  (MCP-Funktionen).
                 - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten.
                 - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
                   handelt, erzeuge auch zwingend nur einen einzelnen Step.
@@ -154,6 +151,10 @@ public class PlannerLlm {
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ] } ]
                 - Wenn der User "Gehe zur Adresse ... und lade die Gewässerschutzkarte" schreibt, erzeugst du zwei Schritte
                   (erst goto_address, dann load_layer).
+                - Wenn der User "Ich will einen ÖREB-Auszug an der Koordinate 2607717, 1228737" schreibt, erzeugst du einen Schritt
+                  (oereb_extract) mit mehreren (zwei) tool calls:
+                  - steps: [ { "intent": "oereb_extract", "toolCalls": [ { "capabilityId": "oereb.egridByXY", "args": { "x": "2607717", "y": "1228737" } },
+                    { "capabilityId": "oereb.extractById", "args": { "egrid": "CH1234567891012" } }] } ]
 
                 ANTWORT:
                 - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
