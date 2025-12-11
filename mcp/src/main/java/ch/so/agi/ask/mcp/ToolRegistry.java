@@ -30,6 +30,8 @@ public interface ToolRegistry {
     record ToolParamDescriptor(
             String name,
             String description,
-            boolean required
+            boolean required,
+            String type,
+            String schema
     ) {}
 }

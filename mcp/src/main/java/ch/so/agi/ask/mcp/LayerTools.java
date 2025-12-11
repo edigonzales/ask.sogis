@@ -2,6 +2,7 @@ package ch.so.agi.ask.mcp;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ch.so.agi.ask.mcp.McpToolArgSchema;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +23,7 @@ public class LayerTools {
             name = "layers.search",
             description = "Dummy search for map layers. Returns mocked WMTS + WMS layers."
     )
-    public LayerResult searchLayers(Map<String,Object> args) {
+    public LayerResult searchLayers(@McpToolArgSchema("{ 'query': 'string - name of the desired map layer' }") Map<String,Object> args) {
 
         String query = (String) args.getOrDefault("query", "");
         log.info("MCP layers-search called with query={}", query);

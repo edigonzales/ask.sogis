@@ -3,6 +3,7 @@ package ch.so.agi.ask.mcp;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
+import ch.so.agi.ask.mcp.McpToolArgSchema;
 
 import java.util.*;
 
@@ -14,7 +15,9 @@ public class OerebTools {
 
     @McpTool(name = "oereb.egridByXY", description = "Mock: Resolves egrid(s) from a Swiss coordinate pair (LV95)")
     public OerebResult getOerebEgridByXY(
-            @McpToolParam(description = "Coordinate input, expecting keys 'x' and 'y' or 'coord' array", required = true) Map<String, Object> args) {
+            @McpToolParam(description = "Coordinate input, expecting keys 'x' and 'y' or 'coord' array", required = true)
+            @McpToolArgSchema("{ 'x': 'number - LV95 east', 'y': 'number - LV95 north', 'coord': '[east, north]' }")
+            Map<String, Object> args) {
 
         double x = asDouble(args.get("x"), 2600000d);
         double y = asDouble(args.get("y"), 1200000d);
@@ -31,7 +34,10 @@ public class OerebTools {
     }
 
     @McpTool(name = "oereb.extractById", description = "Mock: Returns an OEREB extract (PDF URL) for a given egrid")
-    public OerebResult getOerebExtractById(@McpToolParam(description = "Must include 'egrid' or 'selection' with an id") Map<String, Object> args) {
+    public OerebResult getOerebExtractById(
+            @McpToolParam(description = "Must include 'egrid' or 'selection' with an id")
+            @McpToolArgSchema("{ 'egrid': 'string id', 'selection': { 'egrid'|'id': 'string', 'coord': [east, north] } }")
+            Map<String, Object> args) {
         String egrid = extractEgrid(args);
         if (egrid == null || egrid.isBlank()) {
             return new OerebResult("error", List.of(), "Kein EGRID übergeben.");
