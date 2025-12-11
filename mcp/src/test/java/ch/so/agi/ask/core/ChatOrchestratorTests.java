@@ -147,7 +147,11 @@ class ChatOrchestratorTests {
     void plannerPromptIncludesHistoryForFollowUps() {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore);
+        var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+                        "", Object.class, "")));
+        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
@@ -196,7 +200,11 @@ class ChatOrchestratorTests {
     void clearingSessionRemovesHistoryFromFuturePrompts() {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore);
+        var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+                        "", Object.class, "")));
+        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();

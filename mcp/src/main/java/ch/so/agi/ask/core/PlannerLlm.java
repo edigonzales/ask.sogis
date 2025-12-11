@@ -8,16 +8,18 @@ import org.springframework.stereotype.Service;
 import ch.so.agi.ask.model.IntentType;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
+import ch.so.agi.ask.mcp.ToolRegistry;
 
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Spring-AI-gestützter Planner, der Intent und ToolCalls (Capabilities) aus der
  * Benutzereingabe extrahiert. Liefert ein {@link PlannerOutput}, das dem
  * Sequenzschritt "PlannerLlm" aus dem README entspricht und als Ausgangspunkt
- * für Orchestrator &amp; ActionPlanner dient.
+ * für Orchestrator & ActionPlanner dient.
  */
 @Service
 public class PlannerLlm {
@@ -25,95 +27,12 @@ public class PlannerLlm {
     private final ChatClient chatClient;
     private final ChatMemoryStore chatMemoryStore;
 
-    private static final String SYSTEM_PROMPT = """
-            Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene
-            MCP-Funktionen zur Verfügung.
+    private final ToolRegistry toolRegistry;
 
-            AUFGABE:
-            - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
-            - Du bestimmst ein oder mehrere Intents (Absichten) wie z.B.:
-              - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
-              - "%s"     => Lade einen Kartenlayer (Themenkarte).
-              - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
-              - "oereb_extract"   => Hole einen ÖREB-Auszug für ein Grundstück.
-            - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
-              in der gewünschten Ausführungsreihenfolge an.
-            - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
-              - "%s"    => Wandelt einen Adress-String in Koordinaten um.
-              - "%s"  => Findet passende Layer zu einem Thema.
-              - "oereb.egridByXY"    => Findet EGRID-Kandidaten für eine Koordinate.
-              - "oereb.extractById"  => Erstellt einen ÖREB-Auszug für eine EGRID-Auswahl.
-            - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten. 
-            - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
-              handelt, erzeuge auch zwingend nur einen einzelnen Step.
-
-            WICHTIG:
-            - Du rufst SELBST KEINE Capabilities aus, du erzeugst nur den Plan.
-            - Du erzeugst KEINE MapActions (setView, addLayer, etc.).
-            - Du gibst NUR ein JSON-Objekt zurück, kein Fliesstext.
-
-            AUSGABEFORMAT (JSON, KEIN MARKDOWN):
-
-            {
-              "requestId": "string",            // z.B. UUID oder kurzer String
-              "steps": [
-                {
-                  "intent": "%s | %s | %s | ...",
-                  "toolCalls": [
-                    {
-                      "capabilityId": "string",     // z.B. "%s" oder "%s"
-                      "args": {
-                        // Beispiel für %s:
-                        // "q": "Langendorfstrasse 19b, Solothurn"
-                        // Beispiel für %s:
-                        // "query": "Gewässerschutzkarte"
-                      }
-                    }
-                  ],
-                  "result": {
-                    "status": "pending",            // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
-                    "items": [],
-                    "message": ""
-                  }
-                }
-              ]
-            }
-
-            REGELN:
-            - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
-            - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
-              sollst du für geo-/Layer-Fragen mindestens eine passende Capability vorschlagen.
-            - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
-              - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
-            - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
-              - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ] } ]
-            - Wenn der User "Gehe zur Adresse ... und lade die Gewässerschutzkarte" schreibt, erzeugst du zwei Schritte
-              (erst goto_address, dann load_layer).
-
-            ANTWORT:
-            - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
-            - Keine Kommentare, kein Markdown, kein zusätzlicher Text.
-            """.formatted(
-            IntentType.GOTO_ADDRESS.id(),
-            IntentType.LOAD_LAYER.id(),
-            IntentType.SEARCH_PLACE.id(),
-            McpToolCapability.GEOLOCATION_GEOCODE.id(),
-            McpToolCapability.LAYERS_SEARCH.id(),
-            IntentType.GOTO_ADDRESS.id(),
-            IntentType.LOAD_LAYER.id(),
-            IntentType.SEARCH_PLACE.id(),
-            McpToolCapability.GEOLOCATION_GEOCODE.id(),
-            McpToolCapability.LAYERS_SEARCH.id(),
-            McpToolCapability.GEOLOCATION_GEOCODE.id(),
-            McpToolCapability.LAYERS_SEARCH.id(),
-            IntentType.GOTO_ADDRESS.id(),
-            McpToolCapability.GEOLOCATION_GEOCODE.id(),
-            IntentType.LOAD_LAYER.id(),
-            McpToolCapability.LAYERS_SEARCH.id());
-
-    public PlannerLlm(ChatClient chatClient, ChatMemoryStore chatMemoryStore) {
+    public PlannerLlm(ChatClient chatClient, ChatMemoryStore chatMemoryStore, ToolRegistry toolRegistry) {
         this.chatClient = chatClient;
         this.chatMemoryStore = chatMemoryStore;
+        this.toolRegistry = toolRegistry;
     }
 
     /**
@@ -134,7 +53,7 @@ public class PlannerLlm {
         }
 
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(SYSTEM_PROMPT));
+        messages.add(new SystemMessage(buildSystemPrompt()));
         messages.addAll(history);
         messages.add(latestUserMessage);
 
@@ -146,6 +65,107 @@ public class PlannerLlm {
 
         // Deserialisieren in PlannerOutput (ObjectMapper empfohlen)
         return Json.read(content, PlannerOutput.class);
+    }
+
+    private String buildSystemPrompt() {
+        String capabilitySection = toolRegistry.listTools().values().stream()
+                .sorted(Comparator.comparing(td -> td.capability().id()))
+                .map(td -> "            - \"%s\": %s".formatted(td.capability().id(),
+                        Optional.ofNullable(td.description()).orElse("")))
+                .collect(Collectors.joining("\n"));
+        if (capabilitySection.isBlank()) {
+            capabilitySection = "            - (keine Capabilities registriert)";
+        }
+
+        return """
+                Du bist ein "Planner" für eine interaktive Kartenanwendung. Dir stehen verschiedene
+                MCP-Funktionen zur Verfügung.
+
+                VERFÜGBARE CAPABILITIES (capabilityId: Beschreibung):
+                %s
+
+                AUFGABE:
+                - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
+                - Du bestimmst ein oder mehrere Intents (Absichten) wie z.B.:
+                  - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
+                  - "%s"     => Lade einen Kartenlayer (Themenkarte).
+                  - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
+                  - "oereb_extract"   => Hole einen ÖREB-Auszug für ein Grundstück.
+                - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
+                  in der gewünschten Ausführungsreihenfolge an.
+                - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
+                  - "%s"    => Wandelt einen Adress-String in Koordinaten um.
+                  - "%s"  => Findet passende Layer zu einem Thema.
+                  - "oereb.egridByXY"    => Findet EGRID-Kandidaten für eine Koordinate.
+                  - "oereb.extractById"  => Erstellt einen ÖREB-Auszug für eine EGRID-Auswahl.
+                - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten.
+                - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
+                  handelt, erzeuge auch zwingend nur einen einzelnen Step.
+
+                WICHTIG:
+                - Du rufst SELBST KEINE Capabilities aus, du erzeugst nur den Plan.
+                - Du erzeugst KEINE MapActions (setView, addLayer, etc.).
+                - Du gibst NUR ein JSON-Objekt zurück, kein Fliesstext.
+
+                AUSGABEFORMAT (JSON, KEIN MARKDOWN):
+
+                {
+                  "requestId": "string",            // z.B. UUID oder kurzer String
+                  "steps": [
+                    {
+                      "intent": "%s | %s | %s | ...",
+                      "toolCalls": [
+                        {
+                          "capabilityId": "string",     // z.B. "%s" oder "%s"
+                          "args": {
+                            // Beispiel für %s:
+                            // "q": "Langendorfstrasse 19b, Solothurn"
+                            // Beispiel für %s:
+                            // "query": "Gewässerschutzkarte"
+                          }
+                        }
+                      ],
+                      "result": {
+                        "status": "pending",            // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
+                        "items": [],
+                        "message": "",
+                      }
+                    }
+                  ]
+                }
+
+                REGELN:
+                - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
+                - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
+                  sollst du für geo-/Layer-Fragen mindestens eine passende Capability vorschlagen.
+                - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
+                  - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
+                - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
+                  - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "query": "Gewässerschutz" } } ] } ]
+                - Wenn der User "Gehe zur Adresse ... und lade die Gewässerschutzkarte" schreibt, erzeugst du zwei Schritte
+                  (erst goto_address, dann load_layer).
+
+                ANTWORT:
+                - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
+                - Keine Kommentare, kein Markdown, kein zusätzlicher Text.
+                """.formatted(
+                capabilitySection,
+                IntentType.GOTO_ADDRESS.id(),
+                IntentType.LOAD_LAYER.id(),
+                IntentType.SEARCH_PLACE.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                McpToolCapability.LAYERS_SEARCH.id(),
+                IntentType.GOTO_ADDRESS.id(),
+                IntentType.LOAD_LAYER.id(),
+                IntentType.SEARCH_PLACE.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                McpToolCapability.LAYERS_SEARCH.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                McpToolCapability.LAYERS_SEARCH.id(),
+                IntentType.GOTO_ADDRESS.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                IntentType.LOAD_LAYER.id(),
+                McpToolCapability.LAYERS_SEARCH.id());
     }
 
     private PlannerOutput maybeMockOerebPlan(String userMessage) {
