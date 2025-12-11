@@ -43,11 +43,14 @@ public class PlannerLlm {
               - "%s"  => Findet passende Layer zu einem Thema.
               - "oereb.egridByXY"    => Findet EGRID-Kandidaten für eine Koordinate.
               - "oereb.extractById"  => Erstellt einen ÖREB-Auszug für eine EGRID-Auswahl.
+            - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten. 
+            - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
+              handelt, erzeuge auch zwingend nur einen einzelnen Step.
 
             WICHTIG:
             - Du rufst SELBST KEINE Capabilities aus, du erzeugst nur den Plan.
             - Du erzeugst KEINE MapActions (setView, addLayer, etc.).
-            - Du gibst NUR ein JSON-Objekt zurück, kein Fließtext.
+            - Du gibst NUR ein JSON-Objekt zurück, kein Fliesstext.
 
             AUSGABEFORMAT (JSON, KEIN MARKDOWN):
 
@@ -137,6 +140,7 @@ public class PlannerLlm {
 
         var prompt = new Prompt(messages);
         var content = chatClient.prompt(prompt).call().content(); // JSON string
+        System.out.println(content);
 
         chatMemoryStore.appendMessages(sessionId, List.of(latestUserMessage, new AssistantMessage(content)));
 

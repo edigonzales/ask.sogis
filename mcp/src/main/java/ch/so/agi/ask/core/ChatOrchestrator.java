@@ -71,7 +71,7 @@ public class ChatOrchestrator {
 
         for (PlannerOutput.Step step : plan.steps()) {
             PlannerOutput.Result aggResult = executeToolCalls(sessionId, plan.requestId(), step, 0, null);
-            System.out.println(aggResult);
+            System.out.println("aggResult: " + aggResult);
 
             ActionPlan ap = actionPlanner.toActionPlan(step.intent(), aggResult);
             var message = Optional.ofNullable(aggResult).map(PlannerOutput.Result::message).orElse(ap.message());
@@ -125,7 +125,9 @@ public class ChatOrchestrator {
         // In echt: mergen/akkumulieren, Fehlerbehandlung, Tracing, Timeouts, …
         PlannerOutput.Result last = current;
         Map<String, Object> selection = initialSelection;
+        System.out.println("initialSelection: " + initialSelection);
         List<PlannerOutput.ToolCall> toolCalls = step.toolCalls();
+        System.out.println("toolCalls: " + toolCalls);
         for (int i = Math.max(0, startIndex); i < toolCalls.size(); i++) {
             PlannerOutput.ToolCall tc = toolCalls.get(i);
             Map<String, Object> args = new HashMap<>();
@@ -133,6 +135,8 @@ public class ChatOrchestrator {
                 args.putAll(tc.args());
             }
             if (selection != null && !selection.isEmpty()) {
+                System.out.println("selection: " + selection);
+                
                 args.putIfAbsent("selection", selection);
                 Object id = selection.get("id");
                 if (id != null) {
