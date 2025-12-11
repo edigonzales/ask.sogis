@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ch.so.agi.ask.mcp.McpToolArgSchema;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
@@ -46,7 +47,10 @@ public class GeolocationTools {
             name = "geolocation.geocode",
             description = "Geocoder for Swiss Solothurn addresses using the geo.so.ch API."
     )
-    public GeolocationResult geocodeAddress(@McpToolParam(description = "Query string that represents an address", required = true) Map<String, Object> args) {
+    public GeolocationResult geocodeAddress(
+            @McpToolParam(description = "Query string that represents an address", required = true)
+            @McpToolArgSchema("{ 'q': 'string - full address query' }")
+            Map<String, Object> args) {
         String q = (String) args.getOrDefault("q", "");
         log.info("MCP geolocation.geocode called with q={}", q);
 

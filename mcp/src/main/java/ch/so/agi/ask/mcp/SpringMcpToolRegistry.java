@@ -12,10 +12,14 @@ import org.springframework.util.ReflectionUtils;
 
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
+import ch.so.agi.ask.mcp.McpToolArgSchema;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Spring-basierte Implementierung des {@link ToolRegistry}, die @McpTool-
@@ -140,15 +144,40 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
         for (int i = 0; i < parameters.length; i++) {
             Parameter parameter = parameters[i];
             var annotation = parameter.getAnnotation(McpToolParam.class);
-            if (annotation == null) {
-                continue;
-            }
+            var schemaAnnotation = parameter.getAnnotation(McpToolArgSchema.class);
 
             String name = parameter.isNamePresent() ? parameter.getName() : "param" + i;
-            descriptors.add(new ToolRegistry.ToolParamDescriptor(name, annotation.description(), annotation.required()));
+            String description = annotation != null ? annotation.description() : "";
+            boolean required = annotation != null && annotation.required();
+            String type = resolveParameterType(parameter);
+            String schema = schemaAnnotation != null ? schemaAnnotation.value() : null;
+
+            descriptors.add(new ToolRegistry.ToolParamDescriptor(name, description, required, type, schema));
         }
 
         return descriptors;
+    }
+
+    private String resolveParameterType(Parameter parameter) {
+        Type parameterizedType = parameter.getParameterizedType();
+        if (parameterizedType instanceof ParameterizedType pt) {
+            String raw = ((Class<?>) pt.getRawType()).getSimpleName();
+            String args = Arrays.stream(pt.getActualTypeArguments())
+                    .map(this::simpleTypeName)
+                    .filter(s -> !s.isBlank())
+                    .collect(Collectors.joining(", "));
+            return args.isBlank() ? raw : raw + "<" + args + ">";
+        }
+        return parameter.getType().getSimpleName();
+    }
+
+    private String simpleTypeName(Type type) {
+        if (type instanceof Class<?> cls) {
+            return cls.getSimpleName();
+        }
+        String typeName = type.getTypeName();
+        int lastDot = typeName.lastIndexOf('.');
+        return lastDot >= 0 ? typeName.substring(lastDot + 1) : typeName;
     }
 
     private Method resolveInvocableMethod(Object bean, RegisteredTool rt) {

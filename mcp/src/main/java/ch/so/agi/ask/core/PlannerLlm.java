@@ -75,9 +75,21 @@ public class PlannerLlm {
                     String params = td.params().isEmpty()
                             ? "              Params: (keine Parameter dokumentiert)"
                             : "              Params:\n" + td.params().stream()
-                                    .map(param -> "                * %s%s: %s".formatted(param.name(),
-                                            param.required() ? " (required)" : "",
-                                            Optional.ofNullable(param.description()).orElse("")))
+                                    .map(param -> {
+                                        String base = "                * %s%s (%s)".formatted(param.name(),
+                                                param.required() ? " (required)" : "",
+                                                Optional.ofNullable(param.type()).filter(s -> !s.isBlank())
+                                                        .orElse("unknown"));
+                                        String description = Optional.ofNullable(param.description())
+                                                .filter(s -> !s.isBlank())
+                                                .map(s -> " - " + s)
+                                                .orElse("");
+                                        String schema = Optional.ofNullable(param.schema())
+                                                .filter(s -> !s.isBlank())
+                                                .map(s -> "\n                  Schema: " + s)
+                                                .orElse("");
+                                        return base + description + schema;
+                                    })
                                     .collect(Collectors.joining("\n"));
 
                     return "            - \"%s\": %s\n%s".formatted(td.capability().id(),

@@ -152,7 +152,8 @@ class ChatOrchestratorTests {
                 new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
                         "", Object.class, "", List.of(
                                 new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
-                                        "Query string that represents an address", true)))));
+                                        "Query string that represents an address", true,
+                                        "Map<String, Object>", "{ 'q': 'string - full address query' }")))));
         PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
@@ -212,7 +213,8 @@ class ChatOrchestratorTests {
                 new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
                         "", Object.class, "", List.of(
                                 new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
-                                        "Query string that represents an address", true)))));
+                                        "Query string that represents an address", true,
+                                        "Map<String, Object>", "{ 'q': 'string - full address query' }")))));
         PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
