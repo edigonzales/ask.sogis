@@ -74,7 +74,7 @@ wahlpflichtige Liste präsentieren kann.
 ```json
 {
   "requestId": "req-88",             // korreliert Anfrage und Antwort
-  "overallStatus": "needs_user_choice",
+  "overallStatus": "ok",
   "steps": [
     {
       "intent": "goto_address",     // IntentType
