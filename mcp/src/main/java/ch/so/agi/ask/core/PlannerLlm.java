@@ -58,6 +58,7 @@ public class PlannerLlm {
         messages.add(latestUserMessage);
 
         var prompt = new Prompt(messages);
+        System.out.println(prompt);
         var content = chatClient.prompt(prompt).call().content(); // JSON string
         System.out.println(content);
 
@@ -100,10 +101,10 @@ public class PlannerLlm {
                   - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
                   - "%s"     => Lade einen Kartenlayer (Themenkarte).
                   - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
-                  - "oereb_extract"   => Hole einen ÖREB-Auszug für ein Grundstück.
+                  - "%s"   => Hole einen ÖREB-Auszug für ein Grundstück.
                 - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
                   in der gewünschten Ausführungsreihenfolge an.
-                - Du planst MINIMALE Aufrufe gemäss unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
+                - Du planst MINIMALE Aufrufe gemäss den unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
                   (MCP-Funktionen).
                 - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten.
                 - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
@@ -123,7 +124,7 @@ public class PlannerLlm {
                       "intent": "%s | %s | %s | ...",
                       "toolCalls": [
                         {
-                          "capabilityId": "string",     // z.B. "%s" oder "%s"
+                          "capabilityId": "string", // z.B. "%s" oder "%s"
                           "args": {
                             // Beispiel für %s:
                             // "q": "Langendorfstrasse 19b, Solothurn"
@@ -133,7 +134,7 @@ public class PlannerLlm {
                         }
                       ],
                       "result": {
-                        "status": "pending",            // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
+                        "status": "pending", // Der Aufrufer führt die ToolCalls aus und füllt das Ergebnis.
                         "items": [],
                         "message": "",
                       }
@@ -144,7 +145,7 @@ public class PlannerLlm {
                 REGELN:
                 - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
                 - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
-                  sollst du für geo-/Layer-Fragen mindestens eine passende Capability vorschlagen.
+                  sollst du für Lokalisierungs-/Layer-/Fragen mindestens eine passende Capability vorschlagen.
                 - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
                 - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
@@ -153,8 +154,8 @@ public class PlannerLlm {
                   (erst goto_address, dann load_layer).
                 - Wenn der User "Ich will einen ÖREB-Auszug an der Koordinate 2607717, 1228737" schreibt, erzeugst du einen Schritt
                   (oereb_extract) mit mehreren (zwei) tool calls:
-                  - steps: [ { "intent": "oereb_extract", "toolCalls": [ { "capabilityId": "oereb.egridByXY", "args": { "x": "2607717", "y": "1228737" } },
-                    { "capabilityId": "oereb.extractById", "args": { "egrid": "CH1234567891012" } }] } ]
+                  - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "x": "2607717", "y": "1228737" } },
+                    { "capabilityId": "%s", "args": { "egrid": "CH1234567891012" } }] } ]
 
                 ANTWORT:
                 - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
@@ -164,6 +165,7 @@ public class PlannerLlm {
                 IntentType.GOTO_ADDRESS.id(),
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
+                IntentType.OEREB_EXTRACT.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 McpToolCapability.LAYERS_SEARCH.id(),
                 IntentType.GOTO_ADDRESS.id(),
@@ -171,12 +173,13 @@ public class PlannerLlm {
                 IntentType.SEARCH_PLACE.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 McpToolCapability.LAYERS_SEARCH.id(),
-                McpToolCapability.GEOLOCATION_GEOCODE.id(),
-                McpToolCapability.LAYERS_SEARCH.id(),
                 IntentType.GOTO_ADDRESS.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 IntentType.LOAD_LAYER.id(),
-                McpToolCapability.LAYERS_SEARCH.id());
+                McpToolCapability.LAYERS_SEARCH.id(),
+                IntentType.OEREB_EXTRACT.id(),
+                McpToolCapability.OEREB_EGRID_BY_XY.id(),
+                McpToolCapability.OEREB_EXTRACT_BY_ID.id());
     }
 
     private PlannerOutput maybeMockOerebPlan(String userMessage) {
