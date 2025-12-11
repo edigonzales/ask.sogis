@@ -3,6 +3,7 @@ package ch.so.agi.ask.mcp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springaicommunity.mcp.annotation.McpTool;
+import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.*;
 
 /**
@@ -62,7 +64,9 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
                 }
 
                 method.setAccessible(true);
-                RegisteredTool rt = new RegisteredTool(capability, description, beanName, method, userType);
+                List<ToolRegistry.ToolParamDescriptor> params = extractParamDescriptors(method);
+
+                RegisteredTool rt = new RegisteredTool(capability, description, beanName, method, userType, params);
                 tools.put(capability, rt);
 
                 log.info("Registered MCP tool: {} -> {}#{}", capability.id(), userType.getSimpleName(), method.getName());
@@ -122,8 +126,29 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
     public Map<McpToolCapability, ToolDescriptor> listTools() {
         Map<McpToolCapability, ToolDescriptor> map = new EnumMap<>(McpToolCapability.class);
         tools.forEach((capability, rt) -> map.put(capability,
-                new ToolDescriptor(capability, rt.description(), rt.userType(), rt.method().getName())));
+                new ToolDescriptor(capability, rt.description(), rt.userType(), rt.method().getName(), rt.params())));
         return map;
+    }
+
+    private List<ToolRegistry.ToolParamDescriptor> extractParamDescriptors(Method method) {
+        Parameter[] parameters = method.getParameters();
+        if (parameters.length == 0) {
+            return List.of();
+        }
+
+        List<ToolRegistry.ToolParamDescriptor> descriptors = new ArrayList<>();
+        for (int i = 0; i < parameters.length; i++) {
+            Parameter parameter = parameters[i];
+            var annotation = parameter.getAnnotation(McpToolParam.class);
+            if (annotation == null) {
+                continue;
+            }
+
+            String name = parameter.isNamePresent() ? parameter.getName() : "param" + i;
+            descriptors.add(new ToolRegistry.ToolParamDescriptor(name, annotation.description(), annotation.required()));
+        }
+
+        return descriptors;
     }
 
     private Method resolveInvocableMethod(Object bean, RegisteredTool rt) {
@@ -139,6 +164,6 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
     }
 
     private record RegisteredTool(McpToolCapability capability, String description, String beanName, Method method,
-            Class<?> userType) {
+            Class<?> userType, List<ToolRegistry.ToolParamDescriptor> params) {
     }
 }

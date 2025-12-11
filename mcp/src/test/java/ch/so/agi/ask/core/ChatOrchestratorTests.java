@@ -147,7 +147,13 @@ class ChatOrchestratorTests {
     void plannerPromptIncludesHistoryForFollowUps() {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore);
+        var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+                        "", Object.class, "", List.of(
+                                new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
+                                        "Query string that represents an address", true)))));
+        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
@@ -183,6 +189,11 @@ class ChatOrchestratorTests {
         List<Prompt> prompts = promptCaptor.getAllValues();
         assertThat(prompts).hasSize(2);
 
+        String systemPrompt = messageText(prompts.get(0).getInstructions().get(0));
+        assertThat(systemPrompt).contains("geolocation.geocode");
+        assertThat(systemPrompt).contains("Params:");
+        assertThat(systemPrompt).contains("args (required)");
+
         List<Message> secondPromptMessages = prompts.get(1).getInstructions();
         assertThat(secondPromptMessages.stream()
                 .anyMatch(m -> m instanceof UserMessage && messageText(m).contains("Nummer 9"))).isTrue();
@@ -196,7 +207,13 @@ class ChatOrchestratorTests {
     void clearingSessionRemovesHistoryFromFuturePrompts() {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
-        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore);
+        var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+                        "", Object.class, "", List.of(
+                                new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
+                                        "Query string that represents an address", true)))));
+        PlannerLlm planner = new PlannerLlm(chatClient, chatMemoryStore, toolRegistry);
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();

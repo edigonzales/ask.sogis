@@ -4,6 +4,7 @@ package ch.so.agi.ask.mcp;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
+import java.util.List;
 import java.util.Map;
 
 public interface ToolRegistry {
@@ -22,6 +23,13 @@ public interface ToolRegistry {
             McpToolCapability capability,
             String description,
             Class<?> beanType,
-            String methodName
+            String methodName,
+            List<ToolParamDescriptor> params
+    ) {}
+
+    record ToolParamDescriptor(
+            String name,
+            String description,
+            boolean required
     ) {}
 }
