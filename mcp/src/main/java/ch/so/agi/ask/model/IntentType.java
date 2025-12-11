@@ -11,7 +11,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum IntentType {
     GOTO_ADDRESS("goto_address"),
     LOAD_LAYER("load_layer"),
-    SEARCH_PLACE("search_place");
+    SEARCH_PLACE("search_place"),
+    OEREB_EXTRACT("oereb_extract");
 
     private final String id;
 

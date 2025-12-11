@@ -31,14 +31,15 @@ public class ActionPlanner {
         if ("ok".equals(result.status()) && items.size() == 1) {
             return ActionPlan.ok(template(intent, items.get(0)), "Erledigt.");
         }
-        if ("ok".equals(result.status()) && items.size() > 1) {
+        if ("needs_user_choice".equals(result.status()) || ("ok".equals(result.status()) && items.size() > 1)) {
             // Choice-Erzeugung: mehrere Kandidaten ⇒ interaktive Auswahl mit Intent-basiertem Label
             List<Choice> choices = items.stream()
                     .map(i -> new Choice((String) i.getOrDefault("id", UUID.randomUUID().toString()),
                             (String) i.getOrDefault("label", (intent != null ? intent.id() : "intent") + " option"),
                             (Double) i.getOrDefault("confidence", null), template(intent, i), i))
                     .toList();
-            return ActionPlan.needsUserChoice(choices, "Bitte wähle eine Option.");
+            String message = Optional.ofNullable(result.message()).orElse("Bitte wähle eine Option.");
+            return ActionPlan.needsUserChoice(choices, message);
         }
         if ("needs_clarification".equals(result.status())) {
             return ActionPlan.needsClarification(result.message());
@@ -66,6 +67,19 @@ public class ActionPlanner {
             var source = (Map<String, Object>) item.get("source");
             yield List.of(
                     new MapAction("addLayer", Map.of("id", layerId, "type", type, "source", source, "visible", true)));
+        }
+        case OEREB_EXTRACT -> {
+            var egrid = (String) Optional.ofNullable(item.get("egrid")).orElse(item.get("id"));
+            var url = (String) item.getOrDefault("extractUrl", "");
+            List<MapAction> actions = new ArrayList<>();
+            var coord = (List<?>) item.get("coord");
+            if (coord != null) {
+                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 18, "crs", "EPSG:2056")));
+                actions.add(new MapAction("addMarker",
+                        Map.of("id", "oereb-" + egrid, "coord", coord, "style", "pin-default", "label", item.get("label"))));
+            }
+            actions.add(new MapAction("showOerebExtract", Map.of("egrid", egrid, "url", url)));
+            yield actions;
         }
         default -> List.of();
         };

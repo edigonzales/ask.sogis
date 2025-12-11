@@ -6,7 +6,7 @@
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
-  import type { ChatResponse } from '$lib/api/chat-response';
+  import type { ChatResponse, Choice } from '$lib/api/chat-response';
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
@@ -28,6 +28,8 @@
   });
 
   let messages: ChatMessage[] = [createWelcomeMessage()];
+  let pendingChoices: Choice[] = [];
+  let pendingChoiceMessage = '';
 
   function toggleOverlay() {
     isTransitioning = true;
@@ -49,6 +51,8 @@
 
     appendMessage('user', trimmed);
     prompt = '';
+    pendingChoices = [];
+    pendingChoiceMessage = '';
     isSending = true;
 
     try {
@@ -74,7 +78,41 @@
     }
   }
 
+  async function sendChoice(choice: Choice) {
+    if (!choice || isSending) {
+      return;
+    }
+
+    appendMessage('user', `Ich wähle: ${choice.label}`);
+    pendingChoices = [];
+    pendingChoiceMessage = '';
+    isSending = true;
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId, choiceId: choice.id })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const chatResponse = (await response.json()) as ChatResponse;
+      handleChatResponse(chatResponse);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected error while contacting the chat service.';
+      appendMessage('bot', `⚠️ ${message}`);
+    } finally {
+      isSending = false;
+    }
+  }
+
   function handleChatResponse(response: ChatResponse) {
+    let hasChoices = false;
     response.steps?.forEach((step) => {
       if (step.message) {
         appendMessage('bot', step.message);
@@ -83,7 +121,18 @@
       if (step.mapActions?.length) {
         mapActionBus.dispatch(step.mapActions);
       }
+
+      if (step.choices?.length) {
+        pendingChoices = step.choices;
+        pendingChoiceMessage = step.message ?? 'Bitte wähle eine Option.';
+        hasChoices = true;
+      }
     });
+
+    if (!hasChoices) {
+      pendingChoices = [];
+      pendingChoiceMessage = '';
+    }
   }
 
   async function clearChatAndMap() {
@@ -91,6 +140,8 @@
     messages = [createWelcomeMessage()];
     prompt = '';
     sessionId = createSessionId();
+    pendingChoices = [];
+    pendingChoiceMessage = '';
 
     try {
       const response = await fetch('/api/chat', {
@@ -168,6 +219,16 @@
         </div>
       {/each}
     </div>
+    {#if pendingChoices.length}
+      <div class="choice-panel" role="alert">
+        <p class="choice-message">{pendingChoiceMessage || 'Bitte wähle eine Option:'}</p>
+        <div class="choice-buttons">
+          {#each pendingChoices as choice (choice.id)}
+            <Button kind="tertiary" disabled={isSending} on:click={() => sendChoice(choice)}>{choice.label}</Button>
+          {/each}
+        </div>
+      </div>
+    {/if}
     <div class="chat-input">
       <TextArea
         labelText="&nbsp;"
@@ -323,6 +384,25 @@
   .chat-input {
     display: flex;
     flex-direction: column;
+    gap: 8px;
+  }
+
+  .choice-panel {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 0 8px 12px 8px;
+    background: #f4f4f4;
+  }
+
+  .choice-message {
+    margin: 0 0 8px 0;
+    font-weight: 600;
+  }
+
+  .choice-buttons {
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
 

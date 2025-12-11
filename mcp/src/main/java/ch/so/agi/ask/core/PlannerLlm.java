@@ -10,6 +10,8 @@ import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Spring-AI-gestützter Planner, der Intent und ToolCalls (Capabilities) aus der
@@ -33,16 +35,22 @@ public class PlannerLlm {
               - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
               - "%s"     => Lade einen Kartenlayer (Themenkarte).
               - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
+              - "oereb_extract"   => Hole einen ÖREB-Auszug für ein Grundstück.
             - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
               in der gewünschten Ausführungsreihenfolge an.
             - Du planst MINIMALE Aufrufe von "Capabilities" (MCP-Funktionen), z.B.:
               - "%s"    => Wandelt einen Adress-String in Koordinaten um.
               - "%s"  => Findet passende Layer zu einem Thema.
+              - "oereb.egridByXY"    => Findet EGRID-Kandidaten für eine Koordinate.
+              - "oereb.extractById"  => Erstellt einen ÖREB-Auszug für eine EGRID-Auswahl.
+            - Ein Schritt (step) kann mehrere Aufrufe von "Capabilities" (MCP-Funktionen) enthalten. 
+            - Falls aus der Benutzereingabe hervorgeht, dass es sich nur um einen Intent (eine Absicht)
+              handelt, erzeuge auch zwingend nur einen einzelnen Step.
 
             WICHTIG:
             - Du rufst SELBST KEINE Capabilities aus, du erzeugst nur den Plan.
             - Du erzeugst KEINE MapActions (setView, addLayer, etc.).
-            - Du gibst NUR ein JSON-Objekt zurück, kein Fließtext.
+            - Du gibst NUR ein JSON-Objekt zurück, kein Fliesstext.
 
             AUSGABEFORMAT (JSON, KEIN MARKDOWN):
 
@@ -114,8 +122,16 @@ public class PlannerLlm {
      * ToolCalls und initialem Result-Status {@code pending}).
      */
     public PlannerOutput plan(String sessionId, String userMessage) {
+        String safeUserMessage = Optional.ofNullable(userMessage).orElse("");
         List<Message> history = new ArrayList<>(chatMemoryStore.getMessages(sessionId));
-        UserMessage latestUserMessage = new UserMessage(userMessage);
+        UserMessage latestUserMessage = new UserMessage(safeUserMessage);
+
+        PlannerOutput mockPlan = maybeMockOerebPlan(safeUserMessage);
+        if (mockPlan != null) {
+            chatMemoryStore.appendMessages(sessionId,
+                    List.of(latestUserMessage, new AssistantMessage(Json.write(mockPlan))));
+            return mockPlan;
+        }
 
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(SYSTEM_PROMPT));
@@ -124,10 +140,37 @@ public class PlannerLlm {
 
         var prompt = new Prompt(messages);
         var content = chatClient.prompt(prompt).call().content(); // JSON string
+        System.out.println(content);
 
         chatMemoryStore.appendMessages(sessionId, List.of(latestUserMessage, new AssistantMessage(content)));
 
         // Deserialisieren in PlannerOutput (ObjectMapper empfohlen)
         return Json.read(content, PlannerOutput.class);
+    }
+
+    private PlannerOutput maybeMockOerebPlan(String userMessage) {
+        if (userMessage == null) {
+            return null;
+        }
+        String normalized = userMessage.toLowerCase(Locale.ROOT);
+        if (!normalized.contains("öreb") && !normalized.contains("oereb")) {
+            return null;
+        }
+
+        Matcher matcher = Pattern.compile("(\\d{6,7})\\s*/?\\s*(\\d{6,7})").matcher(userMessage.replace('\n', ' '));
+        if (!matcher.find()) {
+            return null;
+        }
+
+        double x = Double.parseDouble(matcher.group(1));
+        double y = Double.parseDouble(matcher.group(2));
+
+        List<PlannerOutput.Step> steps = List
+                .of(new PlannerOutput.Step(IntentType.OEREB_EXTRACT,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.OEREB_EGRID_BY_XY, Map.of("x", x, "y", y)),
+                                new PlannerOutput.ToolCall(McpToolCapability.OEREB_EXTRACT_BY_ID, Map.of())),
+                        new PlannerOutput.Result("pending", List.of(), "")));
+
+        return new PlannerOutput(UUID.randomUUID().toString(), steps);
     }
 }
