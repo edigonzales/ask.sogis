@@ -31,14 +31,15 @@ public class ActionPlanner {
         if ("ok".equals(result.status()) && items.size() == 1) {
             return ActionPlan.ok(template(intent, items.get(0)), "Erledigt.");
         }
-        if ("ok".equals(result.status()) && items.size() > 1) {
+        if ("needs_user_choice".equals(result.status()) || ("ok".equals(result.status()) && items.size() > 1)) {
             // Choice-Erzeugung: mehrere Kandidaten ⇒ interaktive Auswahl mit Intent-basiertem Label
             List<Choice> choices = items.stream()
                     .map(i -> new Choice((String) i.getOrDefault("id", UUID.randomUUID().toString()),
                             (String) i.getOrDefault("label", (intent != null ? intent.id() : "intent") + " option"),
                             (Double) i.getOrDefault("confidence", null), template(intent, i), i))
                     .toList();
-            return ActionPlan.needsUserChoice(choices, "Bitte wähle eine Option.");
+            String message = Optional.ofNullable(result.message()).orElse("Bitte wähle eine Option.");
+            return ActionPlan.needsUserChoice(choices, message);
         }
         if ("needs_clarification".equals(result.status())) {
             return ActionPlan.needsClarification(result.message());
