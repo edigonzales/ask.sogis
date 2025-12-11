@@ -70,8 +70,18 @@ public class PlannerLlm {
     private String buildSystemPrompt() {
         String capabilitySection = toolRegistry.listTools().values().stream()
                 .sorted(Comparator.comparing(td -> td.capability().id()))
-                .map(td -> "            - \"%s\": %s".formatted(td.capability().id(),
-                        Optional.ofNullable(td.description()).orElse("")))
+                .map(td -> {
+                    String params = td.params().isEmpty()
+                            ? "              Params: (keine Parameter dokumentiert)"
+                            : "              Params:\n" + td.params().stream()
+                                    .map(param -> "                * %s%s: %s".formatted(param.name(),
+                                            param.required() ? " (required)" : "",
+                                            Optional.ofNullable(param.description()).orElse("")))
+                                    .collect(Collectors.joining("\n"));
+
+                    return "            - \"%s\": %s\n%s".formatted(td.capability().id(),
+                            Optional.ofNullable(td.description()).orElse(""), params);
+                })
                 .collect(Collectors.joining("\n"));
         if (capabilitySection.isBlank()) {
             capabilitySection = "            - (keine Capabilities registriert)";
