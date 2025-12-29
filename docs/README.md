@@ -46,11 +46,59 @@ sequenceDiagram
 3) **ActionPlanner** wandelt das Item in MapActions um (z. B. `setView` + `addMarker`) und setzt `status = ok`, `choices = []`.
 4) **ChatResponse** enthält einen Step mit `status = ok`; `overallStatus = ok`.
 
+```json
+{
+  "requestId": "req-geo-01",
+  "overallStatus": "ok",
+  "steps": [
+    {
+      "intent": "goto_address",
+      "status": "ok",
+      "message": "Adresse Langendorfstrasse 19b zentriert.",
+      "mapActions": [
+        { "type": "setView", "payload": { "center": [2609767.1, 1228437.4], "zoom": 17, "crs": "EPSG:2056" } },
+        { "type": "addMarker", "payload": { "id": "addr-7568", "coord": [2609767.1, 1228437.4], "style": "pin-default", "label": "Langendorfstrasse 19b, 4500 Solothurn" } }
+      ],
+      "choices": []
+    }
+  ]
+}
+```
+
 ### Mehrschritt-Intent: „Gehe zur Langendorfstrasse 19b in Solothurn und lade den Gewässerschutzlayer“
 1) **PlannerLlm** liefert zwei Steps in Reihenfolge: (a) `goto_address` mit `geolocation.geocode`, (b) `load_layer` mit `layers.search` (Arg `query="Gewässerschutz"`). Beide `result.status = pending`.
 2) **ChatOrchestrator** arbeitet Step für Step ab:
    - Step 1: MCP liefert genau einen Treffer ⇒ `ActionPlanner` setzt `mapActions = [setView, addMarker]`, `status = ok`.
    - Step 2: MCP findet passenden Layer ⇒ `mapActions = [addLayer]`, `status = ok`.
+3) **ChatResponse** bündelt beide Steps; `overallStatus = ok`, weil bei der Statusaggregation nur der „schwerwiegendste“ Zustand (Reihenfolge: `error` > `needs_clarification` > `needs_user_choice` > `ok`) gewählt wird und hier alle Steps auf `ok` stehen.
+
+```json
+{
+  "requestId": "req-geo-layer-02",
+  "overallStatus": "ok",
+  "steps": [
+    {
+      "intent": "goto_address",
+      "status": "ok",
+      "message": "Adresse Langendorfstrasse 19b zentriert.",
+      "mapActions": [
+        { "type": "setView", "payload": { "center": [2609767.1, 1228437.4], "zoom": 17, "crs": "EPSG:2056" } },
+        { "type": "addMarker", "payload": { "id": "addr-7568", "coord": [2609767.1, 1228437.4], "style": "pin-default", "label": "Langendorfstrasse 19b, 4500 Solothurn" } }
+      ],
+      "choices": []
+    },
+    {
+      "intent": "load_layer",
+      "status": "ok",
+      "message": "Gewässerschutz-Layer geladen.",
+      "mapActions": [
+        { "type": "addLayer", "payload": { "id": "ch.so.gws", "type": "wmts", "source": { "url": "https://wmts.example/gws" }, "visible": true } }
+      ],
+      "choices": []
+    }
+  ]
+}
+```
 3) **ChatResponse** bündelt beide Steps; `overallStatus = ok` (schwerwiegendster Status über alle Steps).
 
 ### Auswahl-Flow (needs_user_choice): „Lade den ÖREB-Auszug an der Koordinate 2600513, 1215519“
@@ -59,6 +107,65 @@ sequenceDiagram
 3) **Client** zeigt die Auswahl an und sendet eine Folgeanfrage mit `choiceId`.
 4) **ChatOrchestrator** lädt den gespeicherten Kontext, fügt die Auswahl in die Args für ToolCall (b) ein und führt diesen aus. Liefert MCP `status = ok` mit einem Item (inkl. `extractUrl`), setzt `mapActions = [setView?, addMarker?, showOerebExtract]`, `choices = []`.
 5) **ChatResponse** der Folgeanfrage enthält einen Step mit `status = ok`. Der ursprüngliche `overallStatus` war `needs_user_choice`, danach `ok`.
+
+Erste Antwort (mit Auswahl):
+
+```json
+{
+  "requestId": "req-oereb-03",
+  "overallStatus": "needs_user_choice",
+  "steps": [
+    {
+      "intent": "oereb_extract",
+      "status": "needs_user_choice",
+      "message": "Bitte wähle das betroffene Grundstück.",
+      "mapActions": [],
+      "choices": [
+        {
+          "id": "p1",
+          "label": "EGRID CH1234567891011 – Parzelle A",
+          "confidence": 0.91,
+          "mapActions": [
+            { "type": "addMarker", "payload": { "id": "choice-p1", "coord": [2600513, 1215519], "style": "pin-default", "label": "Parzelle A" } }
+          ],
+          "data": { "egrid": "CH1234567891011", "coord": [2600513, 1215519] }
+        },
+        {
+          "id": "p2",
+          "label": "EGRID CH1234567891012 – Parzelle B",
+          "confidence": 0.78,
+          "mapActions": [
+            { "type": "addMarker", "payload": { "id": "choice-p2", "coord": [2600520, 1215525], "style": "pin-default", "label": "Parzelle B" } }
+          ],
+          "data": { "egrid": "CH1234567891012", "coord": [2600520, 1215525] }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Folgeantwort nach User-Wahl (`choiceId = "p1"`):
+
+```json
+{
+  "requestId": "req-oereb-03",
+  "overallStatus": "ok",
+  "steps": [
+    {
+      "intent": "oereb_extract",
+      "status": "ok",
+      "message": "ÖREB-Auszug für CH1234567891011 bereit.",
+      "mapActions": [
+        { "type": "setView", "payload": { "center": [2600513, 1215519], "zoom": 18, "crs": "EPSG:2056" } },
+        { "type": "addMarker", "payload": { "id": "oereb-CH1234567891011", "coord": [2600513, 1215519], "style": "pin-default", "label": "CH1234567891011" } },
+        { "type": "showOerebExtract", "payload": { "egrid": "CH1234567891011", "url": "https://oereb.example/extract/CH1234567891011.pdf" } }
+      ],
+      "choices": []
+    }
+  ]
+}
+```
 
 ```mermaid
 sequenceDiagram
