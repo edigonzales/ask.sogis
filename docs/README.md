@@ -99,6 +99,7 @@ sequenceDiagram
   ]
 }
 ```
+3) **ChatResponse** bündelt beide Steps; `overallStatus = ok` (schwerwiegendster Status über alle Steps).
 
 ### Auswahl-Flow (needs_user_choice): „Lade den ÖREB-Auszug an der Koordinate 2600513, 1215519“
 1) **PlannerLlm** plant einen Step `oereb_extract` mit zwei ToolCalls: (a) `oereb.egrid_by_xy` (liefert betroffene Grundstücke), (b) `oereb.extract_by_id` (zieht den Auszug).
