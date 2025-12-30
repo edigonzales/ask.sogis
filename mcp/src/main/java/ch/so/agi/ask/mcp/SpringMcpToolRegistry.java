@@ -113,7 +113,7 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
             // Implements ToolResult
             if (result instanceof ToolResult tr) {
                 // Tool-Ergebnis-Normalisierung: vereinheitlicht Status/Items/Message für den Orchestrator
-                return new PlannerOutput.Result(tr.status(), tr.items(), tr.message());
+                return new PlannerOutput.Result(mapStatus(tr.status()), tr.items(), tr.message());
             }
 
             // Fallback: nicht unterstützter Typ
@@ -132,6 +132,17 @@ public class SpringMcpToolRegistry implements ToolRegistry, ApplicationContextAw
         tools.forEach((capability, rt) -> map.put(capability,
                 new ToolDescriptor(capability, rt.description(), rt.userType(), rt.method().getName(), rt.params())));
         return map;
+    }
+
+    private String mapStatus(ToolResult.Status status) {
+        if (status == null) {
+            return "error";
+        }
+        return switch (status) {
+        case SUCCESS -> "ok";
+        case NEEDS_USER_CHOICE -> "needs_user_choice";
+        case ERROR -> "error";
+        };
     }
 
     private List<ToolRegistry.ToolParamDescriptor> extractParamDescriptors(Method method) {

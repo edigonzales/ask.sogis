@@ -16,6 +16,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 import ch.so.agi.ask.mcp.McpToolArgSchema;
+import ch.so.agi.ask.mcp.ToolResult.Status;
 
 import java.io.StringReader;
 import java.text.DecimalFormat;
@@ -43,7 +44,7 @@ public class OerebTools {
         this.restClient = restClientBuilder.baseUrl(BASE_URL).build();
     }
 
-    public record OerebResult(String status, List<Map<String, Object>> items, String message) implements ToolResult {
+    public record OerebResult(Status status, List<Map<String, Object>> items, String message) implements ToolResult {
     }
 
     @McpTool(name = "oereb.egridByXY", description = "Ermittelt ÖREB-EGRID(s) und Geometrie anhand von LV95-Koordinaten")
@@ -58,7 +59,7 @@ public class OerebTools {
                 : (x != null && y != null ? List.of(x, y) : List.of());
 
         if (coord.size() < 2 || coord.stream().anyMatch(Objects::isNull)) {
-            return new OerebResult("error", List.of(), "Ungültige Koordinate übergeben.");
+            return new OerebResult(Status.ERROR, List.of(), "Ungültige Koordinate übergeben.");
         }
 
         String enParam = DECIMAL_FORMAT.format(coord.get(0)) + "," + DECIMAL_FORMAT.format(coord.get(1));
@@ -70,24 +71,26 @@ public class OerebTools {
                     .build()).retrieve().toEntity(String.class);
 
             if (response.getStatusCode().value() == 204 || response.getBody() == null || response.getBody().isBlank()) {
-                return new OerebResult("error", List.of(), "Kein Grundstück gefunden.");
+                return new OerebResult(Status.ERROR, List.of(), "Kein Grundstück gefunden.");
             }
 
             List<Map<String, Object>> items = parseResponse(response.getBody(), coord);
             String message = items.isEmpty() ? "Kein Grundstück gefunden."
                     : (items.size() > 1 ? "Mehrere Grundstücke gefunden." : "Grundstück gefunden.");
-            String status = items.isEmpty() ? "error" : "ok";
+            Status status = items.isEmpty() ? Status.ERROR
+                    : (items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS);
             return new OerebResult(status, items, message);
         } catch (RestClientResponseException e) {
             log.warn("ÖREB GetEGRID call failed with status {}", e.getStatusCode(), e);
-            return new OerebResult("error", List.of(),
+            return new OerebResult(Status.ERROR, List.of(),
                     "ÖREB-Antwort schlug fehl (HTTP " + e.getStatusCode().value() + ").");
         } catch (RestClientException e) {
             log.error("ÖREB-GetEGRID-Aufruf fehlgeschlagen", e);
-            return new OerebResult("error", List.of(), "ÖREB-Dienst konnte nicht erreicht werden.");
+            return new OerebResult(Status.ERROR, List.of(), "ÖREB-Dienst konnte nicht erreicht werden.");
         } catch (Exception e) {
             log.error("Fehler beim Verarbeiten der ÖREB-Antwort", e);
-            return new OerebResult("error", List.of(), "Die Antwort des ÖREB-Dienstes konnte nicht verarbeitet werden.");
+            return new OerebResult(Status.ERROR, List.of(),
+                    "Die Antwort des ÖREB-Dienstes konnte nicht verarbeitet werden.");
         }
     }
 
@@ -98,7 +101,7 @@ public class OerebTools {
             Map<String, Object> args) {
         String egrid = extractEgrid(args);
         if (egrid == null || egrid.isBlank()) {
-            return new OerebResult("error", List.of(), "Kein EGRID übergeben.");
+            return new OerebResult(Status.ERROR, List.of(), "Kein EGRID übergeben.");
         }
 
         Map<String, Object> item = new LinkedHashMap<>();
@@ -121,7 +124,7 @@ public class OerebTools {
 
         String message = "ÖREB-Auszug erstellt.\nPDF: %s\nFachanwendung: %s".formatted(item.get("pdfUrl"),
                 item.get("mapUrl"));
-        return new OerebResult("ok", List.of(item), message);
+        return new OerebResult(Status.SUCCESS, List.of(item), message);
     }
 
     private List<Map<String, Object>> parseResponse(String xml, List<Double> fallbackCoord) throws Exception {

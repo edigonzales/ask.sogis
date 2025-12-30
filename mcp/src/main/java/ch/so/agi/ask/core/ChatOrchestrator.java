@@ -137,14 +137,14 @@ public class ChatOrchestrator {
             if (selection != null && !selection.isEmpty()) {
                 System.out.println("selection: " + selection);
                 
-                args.putIfAbsent("selection", selection);
+                args.put("selection", selection);
                 Object id = selection.get("id");
                 if (id != null) {
-                    args.putIfAbsent("id", id);
+                    args.put("id", id);
                 }
-                Object egrid = selection.get("egrid");
+                Object egrid = Optional.ofNullable(selection.get("egrid")).orElse(id);
                 if (egrid != null) {
-                    args.putIfAbsent("egrid", egrid);
+                    args.put("egrid", egrid);
                 }
             }
 

@@ -3,6 +3,7 @@ package ch.so.agi.ask.mcp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.so.agi.ask.mcp.McpToolArgSchema;
+import ch.so.agi.ask.mcp.ToolResult.Status;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class LayerTools {
     private static final Logger log = LoggerFactory.getLogger(LayerTools.class);
 
     public record LayerResult(
-            String status,
+            Status status,
             List<Map<String,Object>> items,
             String message
     ) implements ToolResult {}
@@ -59,11 +60,7 @@ public class LayerTools {
                 )
         );
 
-        return new LayerResult(
-                "ok",
-                List.of(layer1, layer2),
-                "Gefundene Layer zu \"" + query + "\" (Mock)."
-        );
+        return new LayerResult(Status.NEEDS_USER_CHOICE, List.of(layer1, layer2),
+                "Gefundene Layer zu \"" + query + "\" (Mock).");
     }
 }
-

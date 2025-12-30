@@ -4,8 +4,13 @@ import java.util.List;
 import java.util.Map;
 
 public interface ToolResult {
-    String status();
+    Status status();
     List<Map<String,Object>> items();
     String message();
-}
 
+    enum Status {
+        SUCCESS,
+        NEEDS_USER_CHOICE,
+        ERROR
+    }
+}
