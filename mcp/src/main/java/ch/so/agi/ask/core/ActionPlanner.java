@@ -70,15 +70,19 @@ public class ActionPlanner {
         }
         case OEREB_EXTRACT -> {
             var egrid = (String) Optional.ofNullable(item.get("egrid")).orElse(item.get("id"));
-            var url = (String) item.getOrDefault("extractUrl", "");
             List<MapAction> actions = new ArrayList<>();
             var coord = (List<?>) item.get("coord");
             if (coord != null) {
-                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 18, "crs", "EPSG:2056")));
+                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", "EPSG:2056")));
                 actions.add(new MapAction("addMarker",
                         Map.of("id", "oereb-" + egrid, "coord", coord, "style", "pin-default", "label", item.get("label"))));
             }
-            actions.add(new MapAction("showOerebExtract", Map.of("egrid", egrid, "url", url)));
+            var geometry = item.get("geometry");
+            if (geometry != null) {
+                actions.add(new MapAction("addLayer",
+                        Map.of("id", "oereb-highlight-" + egrid, "type", "geojson",
+                                "source", Map.of("data", geometry, "style", "highlight"))));
+            }
             yield actions;
         }
         default -> List.of();
