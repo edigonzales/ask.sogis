@@ -7,6 +7,7 @@ export enum IntentType {
 export enum MapActionType {
   SetView = 'setView',
   AddMarker = 'addMarker',
+  RemoveMarker = 'removeMarker',
   AddLayer = 'addLayer',
   RemoveLayer = 'removeLayer',
   ClearMap = 'clearMap'
@@ -45,6 +46,7 @@ export interface RemoveLayerPayload extends BasePayload {
 export type MapActionPayload =
   | SetViewPayload
   | AddMarkerPayload
+  | RemoveMarkerPayload
   | AddLayerPayload
   | RemoveLayerPayload
   | BasePayload;

@@ -29,6 +29,7 @@
     MapAction,
     SetViewPayload,
     AddMarkerPayload,
+    RemoveMarkerPayload,
     AddLayerPayload,
     RemoveLayerPayload,
     Coordinates
@@ -204,6 +205,17 @@
     return Promise.resolve();
   }
 
+  function handleRemoveMarker(payload: RemoveMarkerPayload): Promise<void> {
+    if (!markerSource || !payload?.id) {
+      return Promise.resolve();
+    }
+    const feature = markerSource.getFeatureById(payload.id);
+    if (feature) {
+      markerSource.removeFeature(feature as Feature<Point>);
+    }
+    return Promise.resolve();
+  }
+
   function handleAddLayer(payload: AddLayerPayload): Promise<void> {
     if (!map || !payload?.id) {
       return Promise.resolve();
@@ -357,6 +369,8 @@
         return handleSetView(action.payload as SetViewPayload);
       case MapActionType.AddMarker:
         return handleAddMarker(action.payload as AddMarkerPayload);
+      case MapActionType.RemoveMarker:
+        return handleRemoveMarker(action.payload as RemoveMarkerPayload);
       case MapActionType.AddLayer:
         return handleAddLayer(action.payload as AddLayerPayload);
       case MapActionType.RemoveLayer:

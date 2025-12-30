@@ -114,17 +114,38 @@
   function buildHighlightRemovalActions(choicesToClear: Choice[]): MapAction[] {
     return choicesToClear
       .flatMap((choice) => choice.mapActions ?? [])
-      .filter((action) => (action.type as MapActionType | string) === MapActionType.AddLayer)
       .map((action) => {
-        const payload = action.payload as AddLayerPayload;
-        return payload?.id
-          ? ({
-              type: MapActionType.RemoveLayer,
-              payload: { id: payload.id }
-            } as MapAction)
-          : null;
+        const type = action.type as MapActionType | string;
+        if (type === MapActionType.AddLayer) {
+          const payload = action.payload as AddLayerPayload;
+          return payload?.id
+            ? ({
+                type: MapActionType.RemoveLayer,
+                payload: { id: payload.id }
+              } as MapAction)
+            : null;
+        }
+        if (type === MapActionType.AddMarker) {
+          const payload = action.payload as { id?: string };
+          return payload?.id
+            ? ({
+                type: MapActionType.RemoveMarker,
+                payload: { id: payload.id }
+              } as MapAction)
+            : null;
+        }
+        return null;
       })
       .filter((action): action is MapAction => action !== null);
+  }
+
+  function extractHighlightActions(choice: Choice): MapAction[] {
+    return (
+      choice.mapActions?.filter((action) => {
+        const type = action.type as MapActionType | string;
+        return type === MapActionType.AddLayer || type === MapActionType.AddMarker;
+      }) ?? []
+    );
   }
 
   function handleChatResponse(response: ChatResponse) {
@@ -249,10 +270,7 @@
               disabled={isSending}
               on:click={() => sendChoice(choice)}
               on:mouseenter={() => {
-                const highlightActions =
-                  choice.mapActions?.filter(
-                    (action) => (action.type as MapActionType | string) === MapActionType.AddLayer
-                  ) ?? [];
+                const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:mouseleave={() => {
@@ -262,10 +280,7 @@
                 }
               }}
               on:focus={() => {
-                const highlightActions =
-                  choice.mapActions?.filter(
-                    (action) => (action.type as MapActionType | string) === MapActionType.AddLayer
-                  ) ?? [];
+                const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:blur={() => {
