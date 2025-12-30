@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.so.agi.ask.mcp.McpToolArgSchema;
+import ch.so.agi.ask.mcp.ToolResult.Status;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,7 @@ public class GeolocationTools {
     }
 
     public record GeolocationResult(
-            String status,
+            Status status,
             List<Map<String,Object>> items,
             String message
     ) implements ToolResult {}
@@ -55,11 +56,7 @@ public class GeolocationTools {
         log.info("MCP geolocation.geocode called with q={}", q);
 
         if (q == null || q.isBlank()) {
-            return new GeolocationResult(
-                    "error",
-                    List.of(),
-                    "Parameter 'q' darf nicht leer sein."
-            );
+            return new GeolocationResult(Status.ERROR, List.of(), "Parameter 'q' darf nicht leer sein.");
         }
 
         try {
@@ -79,36 +76,26 @@ public class GeolocationTools {
                 items = exactMatches;
             }
 
-            String message = items.isEmpty()
-                    ? "Keine Treffer gefunden."
+            String message = items.isEmpty() ? "Keine Treffer gefunden."
                     : String.format("%d Treffer gefunden.", items.size());
+            Status status = items.isEmpty() ? Status.ERROR
+                    : (items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS);
 
-            return new GeolocationResult(
-                    "ok",
-                    items,
-                    message
-            );
+            return new GeolocationResult(status, items, message);
         } catch (RestClientResponseException e) {
             log.warn("Geocoder call failed with status {}", e.getStatusCode(), e);
             return new GeolocationResult(
-                    "error",
+                    Status.ERROR,
                     List.of(),
                     "Geocoder-Antwort schlug fehl (HTTP " + e.getStatusCode().value() + ")."
             );
         } catch (RestClientException e) {
             log.error("Geocoder-Aufruf fehlgeschlagen", e);
-            return new GeolocationResult(
-                    "error",
-                    List.of(),
-                    "Geocoder konnte nicht erreicht werden."
-            );
+            return new GeolocationResult(Status.ERROR, List.of(), "Geocoder konnte nicht erreicht werden.");
         } catch (IOException e) {
             log.error("Fehler beim Lesen der Geocoder-Antwort", e);
-            return new GeolocationResult(
-                    "error",
-                    List.of(),
-                    "Antwort des Geocoders konnte nicht verarbeitet werden."
-            );
+            return new GeolocationResult(Status.ERROR, List.of(),
+                    "Antwort des Geocoders konnte nicht verarbeitet werden.");
         }
     }
 
