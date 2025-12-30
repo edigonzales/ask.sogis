@@ -33,3 +33,10 @@ curl --header "Content-Type: application/json" \
 - gehe zur langendorfstrasse in solothurn
 -> 25 Treffer
 -> Wie umgehen? Entweder Strasse suchen und anzeigen oder wie ux/ui wenn mehrere Treffer?
+
+### uc 6
+- Erstelle mir einen Öreb-Auszung vom Grundstück 168 in Messen
+
+### uc 7
+- Erstelle mir einen Öreb-Auszug an der Adresse Langendorfstrasse 19b in Solothurn.
+(adresse -> coord -> egrid -> auszug)
