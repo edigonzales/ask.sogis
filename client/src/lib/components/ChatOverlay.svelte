@@ -11,7 +11,7 @@
   import { mapActionBus } from '$lib/stores/mapActions';
 
   type Role = 'bot' | 'user';
-  type ChatMessage = { id: string; role: Role; text: string };
+  type ChatMessage = { id: string; role: Role; text: string; isHtml?: boolean };
 
   let chatMessagesContainer: HTMLDivElement;
   const createSessionId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -24,7 +24,8 @@
   const createWelcomeMessage = () => ({
     id: createMessageId(),
     role: 'bot' as const,
-    text: 'Hello! How can I help you with the map today?'
+    text: 'Hello! How can I help you with the map today?',
+    isHtml: false
   });
 
   let messages: ChatMessage[] = [createWelcomeMessage()];
@@ -39,8 +40,8 @@
     }, 300);
   }
 
-  function appendMessage(role: Role, text: string) {
-    messages = [...messages, { id: createMessageId(), role, text }];
+  function appendMessage(role: Role, text: string, isHtml = false) {
+    messages = [...messages, { id: createMessageId(), role, text, isHtml }];
   }
 
   async function sendMessage() {
@@ -148,6 +149,24 @@
     );
   }
 
+  function renderOerebExtractMessage(message: string | undefined) {
+    if (!message) {
+      return null;
+    }
+    const urls = message.match(/https?:\/\/\S+/g) ?? [];
+    const pdfUrl = urls[0];
+    const mapUrl = urls[1];
+    if (!pdfUrl || !mapUrl) {
+      return null;
+    }
+    const template = `
+      <div>ÖREB-Auszug erstellt.</div>
+      <div>PDF: <a href="${pdfUrl}" target="_blank" rel="noreferrer">${pdfUrl}</a></div>
+      <div>Fachanwendung: <a href="${mapUrl}" target="_blank" rel="noreferrer">${mapUrl}</a></div>
+    `;
+    return template;
+  }
+
   function handleChatResponse(response: ChatResponse) {
     let hasChoices = false;
     const choiceHighlightRemovals = buildHighlightRemovalActions(pendingChoices);
@@ -156,7 +175,16 @@
     }
     response.steps?.forEach((step) => {
       if (step.message) {
-        appendMessage('bot', step.message);
+        if (step.intent === 'oereb_extract') {
+          const html = renderOerebExtractMessage(step.message);
+          if (html) {
+            appendMessage('bot', html, true);
+          } else {
+            appendMessage('bot', step.message);
+          }
+        } else {
+          appendMessage('bot', step.message);
+        }
       }
 
       if (step.mapActions?.length) {
@@ -256,7 +284,11 @@
     <div class="chat-messages" aria-live="polite" bind:this={chatMessagesContainer}>
       {#each messages as message (message.id)}
         <div class={`message ${message.role === 'bot' ? 'bot-message' : 'user-message'}`}>
-          {message.text}
+          {#if message.isHtml}
+            {@html message.text}
+          {:else}
+            {message.text}
+          {/if}
         </div>
       {/each}
     </div>

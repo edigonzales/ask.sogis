@@ -119,7 +119,7 @@ public class OerebTools {
             }
         }
 
-        String message = "ÖREB-Auszug erstellt. PDF: %s Fachanwendung: %s".formatted(item.get("pdfUrl"),
+        String message = "ÖREB-Auszug erstellt.\nPDF: %s\nFachanwendung: %s".formatted(item.get("pdfUrl"),
                 item.get("mapUrl"));
         return new OerebResult("ok", List.of(item), message);
     }
