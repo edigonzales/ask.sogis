@@ -9,6 +9,7 @@
   import WMTSTileGrid from 'ol/tilegrid/WMTS';
   import VectorLayer from 'ol/layer/Vector';
   import VectorSource from 'ol/source/Vector';
+  import GeoJSON from 'ol/format/GeoJSON';
   import Feature from 'ol/Feature';
   import Point from 'ol/geom/Point';
   import Style from 'ol/style/Style';
@@ -29,6 +30,7 @@
     SetViewPayload,
     AddMarkerPayload,
     AddLayerPayload,
+    RemoveLayerPayload,
     Coordinates
   } from '$lib/api/chat-response';
   import TileWMS from 'ol/source/TileWMS';
@@ -58,6 +60,7 @@
   let map: OlMap | null = null;
   let markerSource: VectorSource | null = null;
   let markerLayer: VectorLayer<VectorSource> | null = null;
+  const dynamicLayerMap = new Map<string, TileLayer<WMTSSource | TileWMS> | VectorLayer<VectorSource>>();
   let selectedBackgroundId = 'sw';
   const backgroundLayerMap = new globalThis.Map<string, TileLayer<WMTSSource> | null>();
   let mapActionUnsubscribe: (() => void) | null = null;
@@ -202,7 +205,97 @@
   }
 
   function handleAddLayer(payload: AddLayerPayload): Promise<void> {
-    console.info('addLayer action received but not implemented yet', payload);
+    if (!map || !payload?.id) {
+      return Promise.resolve();
+    }
+
+    const existing = dynamicLayerMap.get(payload.id);
+    if (existing) {
+      map.removeLayer(existing);
+      dynamicLayerMap.delete(payload.id);
+    }
+
+    if (payload.type === 'geojson') {
+      const sourceData = payload.source?.data ?? payload.source;
+      if (!sourceData) {
+        return Promise.resolve();
+      }
+      const geojsonFormat = new GeoJSON({ dataProjection: 'EPSG:2056', featureProjection: 'EPSG:2056' });
+      const features = geojsonFormat.readFeatures(sourceData);
+      const vectorSource = new VectorSource({ features });
+
+      const styleName = (payload.source?.style as string) ?? '';
+      const style =
+        styleName === 'highlight'
+          ? new Style({
+              stroke: new Stroke({ color: 'rgba(255,0,0,0.9)', width: 3 }),
+              fill: new Fill({ color: 'rgba(255,0,0,0.1)' })
+            })
+          : undefined;
+
+      const vectorLayer = new VectorLayer({
+        source: vectorSource,
+        style
+      });
+      vectorLayer.setZIndex(900);
+      map.addLayer(vectorLayer);
+      dynamicLayerMap.set(payload.id, vectorLayer);
+      return Promise.resolve();
+    }
+
+    if (payload.type === 'wmts') {
+      const url = (payload.source?.url ?? '') as string;
+      const layerName = (payload.source?.layer ?? '') as string;
+      if (!url || !layerName) {
+        return Promise.resolve();
+      }
+      const wmtsLayer = new TileLayer({
+        source: new WMTSSource({
+          url,
+          layer: layerName,
+          matrixSet: (payload.source?.matrixSet as string) ?? '2056',
+          format: (payload.source?.format as string) ?? 'image/png',
+          style: (payload.source?.style as string) ?? 'default',
+          wrapX: false
+        }),
+        visible: payload.visible ?? true
+      });
+      map.addLayer(wmtsLayer);
+      dynamicLayerMap.set(payload.id, wmtsLayer);
+      return Promise.resolve();
+    }
+
+    if (payload.type === 'wms') {
+      const url = (payload.source?.url ?? '') as string;
+      if (!url) {
+        return Promise.resolve();
+      }
+      const wmsLayer = new TileLayer({
+        source: new TileWMS({
+          url,
+          params: payload.source ?? {},
+          serverType: 'geoserver',
+          transition: 0
+        }),
+        visible: payload.visible ?? true
+      });
+      map.addLayer(wmsLayer);
+      dynamicLayerMap.set(payload.id, wmsLayer);
+      return Promise.resolve();
+    }
+
+    return Promise.resolve();
+  }
+
+  function handleRemoveLayer(payload: RemoveLayerPayload): Promise<void> {
+    if (!map || !payload?.id) {
+      return Promise.resolve();
+    }
+    const layer = dynamicLayerMap.get(payload.id);
+    if (layer) {
+      map.removeLayer(layer);
+      dynamicLayerMap.delete(payload.id);
+    }
     return Promise.resolve();
   }
 
@@ -266,6 +359,8 @@
         return handleAddMarker(action.payload as AddMarkerPayload);
       case MapActionType.AddLayer:
         return handleAddLayer(action.payload as AddLayerPayload);
+      case MapActionType.RemoveLayer:
+        return handleRemoveLayer(action.payload as RemoveLayerPayload);
       case MapActionType.ClearMap:
         return handleClearMap();
       default:

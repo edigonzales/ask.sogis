@@ -6,7 +6,7 @@
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
-  import type { ChatResponse, Choice } from '$lib/api/chat-response';
+  import type { AddLayerPayload, ChatResponse, Choice, MapAction } from '$lib/api/chat-response';
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
@@ -111,8 +111,28 @@
     }
   }
 
+  function buildHighlightRemovalActions(choicesToClear: Choice[]): MapAction[] {
+    return choicesToClear
+      .flatMap((choice) => choice.mapActions ?? [])
+      .filter((action) => (action.type as MapActionType | string) === MapActionType.AddLayer)
+      .map((action) => {
+        const payload = action.payload as AddLayerPayload;
+        return payload?.id
+          ? ({
+              type: MapActionType.RemoveLayer,
+              payload: { id: payload.id }
+            } as MapAction)
+          : null;
+      })
+      .filter((action): action is MapAction => action !== null);
+  }
+
   function handleChatResponse(response: ChatResponse) {
     let hasChoices = false;
+    const choiceHighlightRemovals = buildHighlightRemovalActions(pendingChoices);
+    if (choiceHighlightRemovals.length) {
+      mapActionBus.dispatch(choiceHighlightRemovals);
+    }
     response.steps?.forEach((step) => {
       if (step.message) {
         appendMessage('bot', step.message);
@@ -224,7 +244,39 @@
         <p class="choice-message">{pendingChoiceMessage || 'Bitte wähle eine Option:'}</p>
         <div class="choice-buttons">
           {#each pendingChoices as choice (choice.id)}
-            <Button kind="tertiary" disabled={isSending} on:click={() => sendChoice(choice)}>{choice.label}</Button>
+            <Button
+              kind="tertiary"
+              disabled={isSending}
+              on:click={() => sendChoice(choice)}
+              on:mouseenter={() => {
+                const highlightActions =
+                  choice.mapActions?.filter(
+                    (action) => (action.type as MapActionType | string) === MapActionType.AddLayer
+                  ) ?? [];
+                mapActionBus.dispatch(highlightActions);
+              }}
+              on:mouseleave={() => {
+                const removals = buildHighlightRemovalActions([choice]);
+                if (removals.length) {
+                  mapActionBus.dispatch(removals);
+                }
+              }}
+              on:focus={() => {
+                const highlightActions =
+                  choice.mapActions?.filter(
+                    (action) => (action.type as MapActionType | string) === MapActionType.AddLayer
+                  ) ?? [];
+                mapActionBus.dispatch(highlightActions);
+              }}
+              on:blur={() => {
+                const removals = buildHighlightRemovalActions([choice]);
+                if (removals.length) {
+                  mapActionBus.dispatch(removals);
+                }
+              }}
+            >
+              {choice.label}
+            </Button>
           {/each}
         </div>
       </div>
