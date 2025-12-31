@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.HtmlUtils;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -89,7 +90,7 @@ public class ProcessingTools {
         String bbox = buildBbox(coord.get(0), coord.get(1), resolution);
 
         try {
-            ResponseEntity<String> response = restClient.get().uri(uriBuilder -> uriBuilder
+            var uri = UriComponentsBuilder.fromUriString(BASE_URL)
                     .queryParam("SERVICE", "WMS")
                     .queryParam("REQUEST", "GetFeatureInfo")
                     .queryParam("VERSION", "1.3.0")
@@ -112,7 +113,12 @@ public class ProcessingTools {
                     .queryParam("FI_POINT_TOLERANCE", 16)
                     .queryParam("FI_POLYGON_TOLERANCE", 4)
                     .queryParam("RADIUS", 16)
-                    .build()).retrieve().toEntity(String.class);
+                    .build(true)
+                    .toUri();
+
+            log.info("Geothermal GetFeatureInfo request: {}", uri);
+
+            ResponseEntity<String> response = restClient.get().uri(uri).retrieve().toEntity(String.class);
 
             if (response.getStatusCode().isError() || response.getBody() == null || response.getBody().isBlank()) {
                 return new ProcessingResult(Status.ERROR, List.of(),
