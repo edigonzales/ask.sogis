@@ -93,6 +93,7 @@ sequenceDiagram
 - **oereb.extractById**: Baut ÖREB-Auszug-URLs für ein EGRID.
 - **featureSearch.getEgridByNumberAndMunicipality**: Lookup des EGRID anhand sprechender Grundstücksnummer und Gemeindename über den Feature-Service
   `ch.so.agi.av.grundstuecke.rechtskraeftig`. Liefert bei Mehrfachtreffern Auswahl-Items (Status `NEEDS_USER_CHOICE`), ansonsten `SUCCESS`.
+- **processing.getGeothermalBoreInfoByXY**: Führt eine WMS-GetFeatureInfo-Anfrage auf `ch.so.afu.ewsabfrage.abfrage` aus, um an einer LV95-Koordinate die zulässige Bohrtiefe für Erdwärmesonden und den PDF-Bericht-Link zurückzugeben. Antwort als `ProcessingResult` (Status/Items/Message) strukturiert.
 
 ## Typische Responses
 

@@ -85,6 +85,18 @@ public class ActionPlanner {
             }
             yield actions;
         }
+        case GEOTHERMAL_PROBE_ASSESSMENT -> {
+            var coord = (List<?>) item.get("coord");
+            var label = (String) item.getOrDefault("label", "Geothermal probe assessment");
+            if (coord == null) {
+                yield List.of();
+            }
+            yield List.of(
+                    new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", "EPSG:2056")),
+                    new MapAction("addMarker",
+                            Map.of("id", "geothermal-" + item.getOrDefault("id", "probe"), "coord", coord,
+                                    "style", "pin-default", "label", label)));
+        }
         default -> List.of();
         };
     }

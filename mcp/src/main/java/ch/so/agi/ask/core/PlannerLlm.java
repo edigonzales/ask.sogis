@@ -1,5 +1,7 @@
 package ch.so.agi.ask.core;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 import ch.so.agi.ask.model.IntentType;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
+import ch.so.agi.ask.mcp.ProcessingTools;
 import ch.so.agi.ask.mcp.ToolRegistry;
 
 import java.util.*;
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class PlannerLlm {
+    private static final Logger log = LoggerFactory.getLogger(PlannerLlm.class);
 
     private final ChatClient chatClient;
     private final ChatMemoryStore chatMemoryStore;
@@ -58,9 +62,11 @@ public class PlannerLlm {
         messages.add(latestUserMessage);
 
         var prompt = new Prompt(messages);
-        System.out.println(prompt);
+        log.info(prompt.toString());
+        log.info("*******************************");
         var content = chatClient.prompt(prompt).call().content(); // JSON string
-        System.out.println(content);
+        log.info(content);
+        log.info("*******************************");
 
         chatMemoryStore.appendMessages(sessionId, List.of(latestUserMessage, new AssistantMessage(content)));
 
@@ -114,6 +120,7 @@ public class PlannerLlm {
                   - "%s"     => Lade einen Kartenlayer (Themenkarte).
                   - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
                   - "%s"   => Hole einen ÖREB-Auszug für ein Grundstück.
+                  - "%s"   => Prüfe die Machbarkeit einer Erdwärmesonde an einer Koordinate.
                 - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
                   in der gewünschten Ausführungsreihenfolge an.
                 - Du planst MINIMALE Aufrufe gemäss den unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
@@ -133,7 +140,7 @@ public class PlannerLlm {
                   "requestId": "string",            // z.B. UUID oder kurzer String
                   "steps": [
                     {
-                      "intent": "%s | %s | %s | ...",
+                      "intent": "%s | %s | %s | %s | %s | ...",
                       "toolCalls": [
                         {
                           "capabilityId": "string", // z.B. "%s" oder "%s"
@@ -178,11 +185,14 @@ public class PlannerLlm {
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
                 IntentType.OEREB_EXTRACT.id(),
-                McpToolCapability.GEOLOCATION_GEOCODE.id(),
-                McpToolCapability.LAYERS_SEARCH.id(),
+                IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
                 IntentType.GOTO_ADDRESS.id(),
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
+                IntentType.OEREB_EXTRACT.id(),
+                IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                McpToolCapability.LAYERS_SEARCH.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 McpToolCapability.LAYERS_SEARCH.id(),
                 IntentType.GOTO_ADDRESS.id(),
