@@ -29,6 +29,11 @@ curl --header "Content-Type: application/json" \
 - gehe zu ...
 - wie tief kann ich hier für eine erdwärmesonde bohren?
 
+- Wie tief kann ich an der Koordinate 2605919, 1229245 für eine Erdwärmesonde bohren?
+
+- Wie tief kann ich an der Langendorfstrasse 19b in Solothurn für eine Erdwärmesonde bohren?
+
+
 ### uc 5
 - gehe zur langendorfstrasse in solothurn
 -> 25 Treffer
@@ -40,3 +45,4 @@ curl --header "Content-Type: application/json" \
 ### uc 7
 - Erstelle mir einen Öreb-Auszug an der Adresse Langendorfstrasse 19b in Solothurn.
 (adresse -> coord -> egrid -> auszug)
+
