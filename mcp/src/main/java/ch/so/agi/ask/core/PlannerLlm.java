@@ -1,5 +1,7 @@
 package ch.so.agi.ask.core;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -8,6 +10,7 @@ import org.springframework.stereotype.Service;
 import ch.so.agi.ask.model.IntentType;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
+import ch.so.agi.ask.mcp.ProcessingTools;
 import ch.so.agi.ask.mcp.ToolRegistry;
 
 import java.util.*;
@@ -23,6 +26,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class PlannerLlm {
+    private static final Logger log = LoggerFactory.getLogger(PlannerLlm.class);
 
     private final ChatClient chatClient;
     private final ChatMemoryStore chatMemoryStore;
@@ -58,9 +62,11 @@ public class PlannerLlm {
         messages.add(latestUserMessage);
 
         var prompt = new Prompt(messages);
-        System.out.println(prompt);
+        log.info(prompt.toString());
+        log.info("*******************************");
         var content = chatClient.prompt(prompt).call().content(); // JSON string
-        System.out.println(content);
+        log.info(content);
+        log.info("*******************************");
 
         chatMemoryStore.appendMessages(sessionId, List.of(latestUserMessage, new AssistantMessage(content)));
 

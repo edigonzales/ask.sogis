@@ -35,8 +35,8 @@ import ch.so.agi.ask.mcp.McpToolArgSchema;
 
 @Component
 public class ProcessingTools {
-
     private static final Logger log = LoggerFactory.getLogger(ProcessingTools.class);
+    
     private static final String BASE_URL = "https://geo.so.ch/api/v1/featureinfo/somap";
     private static final String LAYER_NAME = "ch.so.afu.ewsabfrage.abfrage";
     private static final int IMAGE_SIZE = 101;
