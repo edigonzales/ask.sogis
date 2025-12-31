@@ -182,6 +182,8 @@
           } else {
             appendMessage('bot', step.message);
           }
+        } else if (step.intent === 'geothermal_probe_assessment') {
+          appendMessage('bot', step.message, true);
         } else {
           appendMessage('bot', step.message);
         }

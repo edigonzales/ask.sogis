@@ -145,10 +145,19 @@ public class ProcessingTools {
                 });
             }
 
-            String message = Optional.ofNullable(parsed.linkInfo()).flatMap(info -> Optional.ofNullable(info.href()))
-                    .map(url -> "%s Für weitere Angaben klicken Sie bitte auf den <a href=\"%s\" target=\"_blank\" rel=\"noreferrer\">PDF-Link</a>."
-                            .formatted(parsed.resultText(), url))
-                    .orElse(parsed.resultText());
+            String message = parsed.resultText();
+            Optional<String> linkOpt = Optional.ofNullable(parsed.linkInfo()).flatMap(info -> Optional.ofNullable(info.href()));
+            if (linkOpt.isPresent()) {
+                String anchor = "<a href=\"%s\" target=\"_blank\" rel=\"noreferrer\">PDF-Link</a>"
+                        .formatted(linkOpt.get());
+                if (message != null && message.contains("PDF-Link")) {
+                    message = message.replaceFirst("PDF-Link\\.?", anchor);
+                } else if (message != null) {
+                    message = message + " Für weitere Angaben klicken Sie bitte auf den " + anchor + ".";
+                } else {
+                    message = "Für weitere Angaben klicken Sie bitte auf den " + anchor + ".";
+                }
+            }
             return new ProcessingResult(Status.SUCCESS, List.of(item), message);
         } catch (RestClientResponseException e) {
             log.warn("Geothermal GetFeatureInfo failed with status {}", e.getStatusCode(), e);
