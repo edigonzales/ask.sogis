@@ -148,15 +148,9 @@ public class ProcessingTools {
             String message = parsed.resultText();
             Optional<String> linkOpt = Optional.ofNullable(parsed.linkInfo()).flatMap(info -> Optional.ofNullable(info.href()));
             if (linkOpt.isPresent()) {
-                String anchor = "<a href=\"%s\" target=\"_blank\" rel=\"noreferrer\">PDF-Link</a>"
+                String anchor = "<a href=\"%s\" target=\"_blank\" rel=\"noreferrer\">Resultat</a>"
                         .formatted(linkOpt.get());
-                if (message != null && message.contains("PDF-Link")) {
-                    message = message.replaceFirst("PDF-Link\\.?", anchor);
-                } else if (message != null) {
-                    message = message + " Für weitere Angaben klicken Sie bitte auf den " + anchor + ".";
-                } else {
-                    message = "Für weitere Angaben klicken Sie bitte auf den " + anchor + ".";
-                }
+                message = message == null || message.isBlank() ? anchor : (message + " " + anchor);
             }
             return new ProcessingResult(Status.SUCCESS, List.of(item), message);
         } catch (RestClientResponseException e) {
