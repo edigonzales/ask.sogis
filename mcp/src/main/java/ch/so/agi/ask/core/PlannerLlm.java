@@ -114,6 +114,7 @@ public class PlannerLlm {
                   - "%s"     => Lade einen Kartenlayer (Themenkarte).
                   - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
                   - "%s"   => Hole einen ÖREB-Auszug für ein Grundstück.
+                  - "%s"   => Prüfe die Machbarkeit einer Erdwärmesonde an einer Koordinate.
                 - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
                   in der gewünschten Ausführungsreihenfolge an.
                 - Du planst MINIMALE Aufrufe gemäss den unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
@@ -133,7 +134,7 @@ public class PlannerLlm {
                   "requestId": "string",            // z.B. UUID oder kurzer String
                   "steps": [
                     {
-                      "intent": "%s | %s | %s | ...",
+                      "intent": "%s | %s | %s | %s | %s | ...",
                       "toolCalls": [
                         {
                           "capabilityId": "string", // z.B. "%s" oder "%s"
@@ -178,11 +179,14 @@ public class PlannerLlm {
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
                 IntentType.OEREB_EXTRACT.id(),
-                McpToolCapability.GEOLOCATION_GEOCODE.id(),
-                McpToolCapability.LAYERS_SEARCH.id(),
+                IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
                 IntentType.GOTO_ADDRESS.id(),
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
+                IntentType.OEREB_EXTRACT.id(),
+                IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
+                McpToolCapability.GEOLOCATION_GEOCODE.id(),
+                McpToolCapability.LAYERS_SEARCH.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 McpToolCapability.LAYERS_SEARCH.id(),
                 IntentType.GOTO_ADDRESS.id(),
