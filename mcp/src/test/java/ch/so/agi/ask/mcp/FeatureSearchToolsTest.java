@@ -7,6 +7,8 @@ import org.springframework.web.client.RestClient;
 import java.util.List;
 import java.util.Map;
 
+import ch.so.agi.ask.mcp.McpResponseItem;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FeatureSearchToolsTest {
@@ -54,10 +56,10 @@ class FeatureSearchToolsTest {
                 """;
 
         FeatureSearchTools tools = new FeatureSearchTools(RestClient.builder(), mapper);
-        List<Map<String, Object>> items = tools.mapFeatures(json);
+        List<McpResponseItem> items = tools.mapFeatures(json);
 
         assertThat(items).hasSize(2);
-        Map<String, Object> first = items.getFirst();
+        Map<String, Object> first = McpResponseItem.payload(items.getFirst().toMap());
         assertThat(first.get("egrid")).isEqualTo("CH807306583219");
         assertThat(first.get("municipality")).isEqualTo("Messen");
         assertThat(first.get("landRegister")).isEqualTo("Messen");
@@ -67,4 +69,3 @@ class FeatureSearchToolsTest {
         assertThat(first.get("coord")).isInstanceOf(List.class);
     }
 }
-

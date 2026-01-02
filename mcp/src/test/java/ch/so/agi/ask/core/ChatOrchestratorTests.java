@@ -21,6 +21,7 @@ import ch.so.agi.ask.model.ChatResponse;
 import ch.so.agi.ask.model.IntentType;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
+import ch.so.agi.ask.mcp.McpResponseItem;
 import ch.so.agi.ask.core.PendingChoiceStore;
 import ch.so.agi.ask.core.InMemoryPendingChoiceStore;
 import org.springframework.ai.chat.messages.AbstractMessage;
@@ -256,6 +257,47 @@ class ChatOrchestratorTests {
                 .anyMatch(content -> content.contains("Langendorfstrasse 19b"))).isFalse();
         assertThat(secondPromptMessages.stream().filter(m -> !(m instanceof SystemMessage))
                 .anyMatch(m -> m instanceof UserMessage && messageText(m).contains("Nummer 9"))).isTrue();
+    }
+
+    @Test
+    void carriesSelectionPayloadToFollowingToolCalls() {
+        PlannerLlm planner = mock(PlannerLlm.class);
+        McpClient mcpClient = mock(McpClient.class);
+        ActionPlanner actionPlanner = new ActionPlanner();
+        ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
+        PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
+                pendingChoiceStore);
+
+        var step = new PlannerOutput.Step(IntentType.GEOTHERMAL_PROBE_ASSESSMENT,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE, Map.of("q", "addr")),
+                        new PlannerOutput.ToolCall(McpToolCapability.PROCESSING_GEOTHERMAL_BORE_INFO_BY_XY, Map.of())),
+                new PlannerOutput.Result("pending", List.of(), ""));
+
+        when(planner.plan(anyString(), anyString())).thenReturn(new PlannerOutput("req-sel", List.of(step)));
+
+        Map<String, Object> selectionItem = new McpResponseItem("geolocation",
+                Map.of("id", "123", "label", "Test address", "coord", List.of(2600000d, 1200000d), "crs", "EPSG:2056"),
+                List.of(), Map.of()).toMap();
+
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
+                .thenReturn(new PlannerOutput.Result("ok", List.of(selectionItem), "Adresse gefunden"));
+
+        ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+        when(mcpClient.execute(eq(McpToolCapability.PROCESSING_GEOTHERMAL_BORE_INFO_BY_XY), argsCaptor.capture()))
+                .thenReturn(new PlannerOutput.Result("ok", List.of(), "Geothermie geprüft"));
+
+        orchestrator.handleUserPrompt(new ChatRequest("sess-sel", "Adresse prüfen", null));
+
+        Map<String, Object> forwardedArgs = argsCaptor.getValue();
+        assertThat(forwardedArgs.get("coord")).isEqualTo(List.of(2600000d, 1200000d));
+        assertThat(forwardedArgs.get("x")).isEqualTo(2600000d);
+        assertThat(forwardedArgs.get("y")).isEqualTo(1200000d);
+        assertThat(forwardedArgs.get("crs")).isEqualTo("EPSG:2056");
+        assertThat(forwardedArgs.get("selection")).isInstanceOf(Map.class);
+        Map<String, Object> selection = (Map<String, Object>) forwardedArgs.get("selection");
+        assertThat(selection).doesNotContainKey("payload");
+        assertThat(selection.get("coord")).isEqualTo(List.of(2600000d, 1200000d));
     }
 
     private String messageText(Message message) {

@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class GeolocationTools {
@@ -70,18 +71,16 @@ public class GeolocationTools {
                     .body(String.class);
 
             JsonNode root = objectMapper.readTree(body);
-            List<Map<String, Object>> items = mapResults(root.path("results"));
-            List<Map<String, Object>> exactMatches = filterExactMatches(q, items);
-            if (!exactMatches.isEmpty()) {
-                items = exactMatches;
-            }
+            List<McpResponseItem> mappedResults = mapResults(root.path("results"));
+            List<McpResponseItem> exactMatches = filterExactMatches(q, mappedResults);
+            List<McpResponseItem> items = exactMatches.isEmpty() ? mappedResults : exactMatches;
 
             String message = items.isEmpty() ? "Keine Treffer gefunden."
                     : String.format("%d Treffer gefunden.", items.size());
             Status status = items.isEmpty() ? Status.ERROR
                     : (items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS);
 
-            return new GeolocationResult(status, items, message);
+            return new GeolocationResult(status, McpResponseItem.toMapList(items), message);
         } catch (RestClientResponseException e) {
             log.warn("Geocoder call failed with status {}", e.getStatusCode(), e);
             return new GeolocationResult(
@@ -99,12 +98,12 @@ public class GeolocationTools {
         }
     }
 
-    List<Map<String, Object>> mapResults(JsonNode resultsNode) {
+    List<McpResponseItem> mapResults(JsonNode resultsNode) {
         if (resultsNode == null || !resultsNode.isArray()) {
             return List.of();
         }
 
-        List<Map<String, Object>> items = new ArrayList<>();
+        List<McpResponseItem> items = new ArrayList<>();
         resultsNode.forEach(resultNode -> {
             JsonNode featureNode = resultNode.path("feature");
             createItemFromFeature(featureNode).ifPresent(items::add);
@@ -112,7 +111,7 @@ public class GeolocationTools {
         return items;
     }
 
-    List<Map<String, Object>> filterExactMatches(String query, List<Map<String, Object>> items) {
+    List<McpResponseItem> filterExactMatches(String query, List<McpResponseItem> items) {
         if (items == null || items.isEmpty()) {
             return List.of();
         }
@@ -122,23 +121,15 @@ public class GeolocationTools {
             return List.of();
         }
 
-        List<Map<String, Object>> matches = new ArrayList<>();
-        for (Map<String, Object> item : items) {
-            Object labelValue = item.get("label");
-            if (!(labelValue instanceof String label)) {
-                continue;
-            }
-
-            String normalizedLabel = normalizeStreetAndNumber(label);
-            if (!normalizedLabel.isBlank() && normalizedLabel.equals(normalizedQuery)) {
-                matches.add(item);
-            }
-        }
-
-        return matches;
+        return items.stream()
+                .filter(item -> {
+                    String normalizedLabel = normalizeStreetAndNumber(McpResponseItem.label(item.toMap()));
+                    return !normalizedLabel.isBlank() && normalizedLabel.equals(normalizedQuery);
+                })
+                .collect(Collectors.toList());
     }
 
-    private Optional<Map<String, Object>> createItemFromFeature(JsonNode featureNode) {
+    private Optional<McpResponseItem> createItemFromFeature(JsonNode featureNode) {
         if (featureNode == null || featureNode.isMissingNode()) {
             return Optional.empty();
         }
@@ -155,12 +146,16 @@ public class GeolocationTools {
         List<Double> bboxValues = new ArrayList<>();
         bboxNode.forEach(coord -> bboxValues.add(coord.asDouble()));
 
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", id);
-        item.put("label", label);
-        item.put("coord", bboxValues);
-        item.put("crs", srid);
-        return Optional.of(item);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", id);
+        payload.put("label", label);
+        payload.put("coord", bboxValues);
+        payload.put("crs", srid);
+
+        Map<String, Object> clientAction = Map.of(
+                "type", "setView",
+                "payload", Map.of("center", bboxValues, "zoom", 17, "crs", srid));
+        return Optional.of(new McpResponseItem("geolocation", payload, List.of(), clientAction));
     }
 
     private String sanitizeLabel(String display) {

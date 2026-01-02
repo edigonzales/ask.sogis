@@ -95,6 +95,13 @@ sequenceDiagram
   `ch.so.agi.av.grundstuecke.rechtskraeftig`. Liefert bei Mehrfachtreffern Auswahl-Items (Status `NEEDS_USER_CHOICE`), ansonsten `SUCCESS`.
 - **processing.getGeothermalBoreInfoByXY**: Führt eine WMS-GetFeatureInfo-Anfrage auf `ch.so.afu.ewsabfrage.abfrage` aus, um an einer LV95-Koordinate die zulässige Bohrtiefe für Erdwärmesonden und den PDF-Bericht-Link zurückzugeben. Antwort als `ProcessingResult` (Status/Items/Message) strukturiert.
 
+### MCP-Response-Schema
+- Alle Tools liefern Items im Format `{ type, payload, options?, clientAction? }`.
+- **type** beschreibt die Domäne (z. B. `geolocation`, `layer`, `oereb-parcel`, `geothermal`).
+- **payload** enthält die fachlichen Felder (`id`, `label`, `coord`, `crs`, domänenspezifische Attribute).
+- **clientAction** ist optional und beschreibt Map-Aktionen, die direkt im Client anwendbar sind; der `ActionPlanner` kombiniert sie mit intent-spezifischen Templates.
+- Durch diese Normalisierung bleiben die bestehenden Client-Erwartungen (MapActions/Choices) unverändert.
+
 ## Typische Responses
 
 ```jsonc

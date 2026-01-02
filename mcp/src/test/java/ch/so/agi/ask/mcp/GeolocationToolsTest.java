@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import ch.so.agi.ask.mcp.McpResponseItem;
+
 import java.util.List;
 import java.util.Map;
 
@@ -23,14 +25,17 @@ class GeolocationToolsTest {
         JsonNode root = mapper.readTree(json);
         GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
-        List<Map<String, Object>> items = geolocationTools.mapResults(root.path("results"));
+        List<McpResponseItem> items = geolocationTools.mapResults(root.path("results"));
 
         assertEquals(1, items.size());
-        Map<String, Object> item = items.get(0);
-        assertEquals("623490242", item.get("id"));
-        assertEquals("Langendorfstrasse 19b, 4500 Solothurn", item.get("label"));
-        assertEquals("EPSG:2056", item.get("crs"));
-        assertEquals(List.of(2605899.0, 1229278.0, 2605899.0, 1229278.0), item.get("coord"));
+        Map<String, Object> item = items.get(0).toMap();
+        Map<String, Object> payload = McpResponseItem.payload(item);
+        assertEquals("623490242", payload.get("id"));
+        assertEquals("Langendorfstrasse 19b, 4500 Solothurn", payload.get("label"));
+        assertEquals("EPSG:2056", payload.get("crs"));
+        assertEquals(List.of(2605899.0, 1229278.0, 2605899.0, 1229278.0), payload.get("coord"));
+        assertEquals("geolocation", item.get("type"));
+        assertTrue(item.containsKey("clientAction"));
     }
 
     @Test
@@ -41,7 +46,7 @@ class GeolocationToolsTest {
         JsonNode root = mapper.readTree(json);
         GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
-        List<Map<String, Object>> items = geolocationTools.mapResults(root.path("results"));
+        List<McpResponseItem> items = geolocationTools.mapResults(root.path("results"));
         assertTrue(items.isEmpty());
     }
 
@@ -49,22 +54,24 @@ class GeolocationToolsTest {
     void filterExactMatches_prefersStreetAndHouseNumber() {
         GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
 
-        List<Map<String, Object>> items = List.of(
-                Map.of("label", "Burgunderstrasse 9, 4500 Solothurn"),
-                Map.of("label", "Burgunderstrasse 19, 4500 Solothurn")
+        List<McpResponseItem> items = List.of(
+                new McpResponseItem("geolocation", Map.of("label", "Burgunderstrasse 9, 4500 Solothurn"), List.of(),
+                        Map.of()),
+                new McpResponseItem("geolocation", Map.of("label", "Burgunderstrasse 19, 4500 Solothurn"), List.of(),
+                        Map.of())
         );
 
-        List<Map<String, Object>> matches = geolocationTools.filterExactMatches("burgunderstrasse 9, solothurn", items);
+        List<McpResponseItem> matches = geolocationTools.filterExactMatches("burgunderstrasse 9, solothurn", items);
 
         assertEquals(1, matches.size());
-        assertEquals("Burgunderstrasse 9, 4500 Solothurn", matches.get(0).get("label"));
+        assertEquals("Burgunderstrasse 9, 4500 Solothurn", McpResponseItem.payload(matches.get(0).toMap()).get("label"));
     }
 
     @Test
     void filterExactMatches_returnsEmptyForEmptyQuery() {
         GeolocationTools geolocationTools = new GeolocationTools(RestClient.builder(), mapper);
-        List<Map<String, Object>> items = List.of(
-                Map.of("label", "Teststrasse 1, 4500 Solothurn")
+        List<McpResponseItem> items = List.of(
+                new McpResponseItem("geolocation", Map.of("label", "Teststrasse 1, 4500 Solothurn"), List.of(), Map.of())
         );
 
         assertTrue(geolocationTools.filterExactMatches(" ", items).isEmpty());
