@@ -3,6 +3,7 @@
 ## todo
 
 - x Treffer: Aufklappbar mit Antwort (raw).
+- sauberes logging / debugging
 
 
 
