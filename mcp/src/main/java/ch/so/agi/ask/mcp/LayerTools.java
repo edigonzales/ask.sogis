@@ -29,7 +29,7 @@ public class LayerTools {
         String query = (String) args.getOrDefault("query", "");
         log.info("MCP layers-search called with query={}", query);
 
-        Map<String,Object> layer1 = Map.of(
+        Map<String,Object> layer1Payload = Map.of(
                 "id", "gsk-wmts",
                 "label", "Gewässerschutzkarte (Kanton SO) – WMTS",
                 "layerId", "ch.so.afu.gewaesserschutz",
@@ -45,7 +45,7 @@ public class LayerTools {
                 )
         );
 
-        Map<String,Object> layer2 = Map.of(
+        Map<String,Object> layer2Payload = Map.of(
                 "id", "gsk-wms",
                 "label", "Gewässerschutzkarte (CH) – WMS",
                 "layerId", "ch.bafu.gewaesserschutz",
@@ -60,7 +60,19 @@ public class LayerTools {
                 )
         );
 
-        return new LayerResult(Status.NEEDS_USER_CHOICE, List.of(layer1, layer2),
+        Map<String, Object> clientAction1 = Map.of("type", "addLayer",
+                "payload", Map.of("id", layer1Payload.get("layerId"), "type", "wmts", "source", layer1Payload.get("source"),
+                        "visible", true));
+        Map<String, Object> clientAction2 = Map.of("type", "addLayer",
+                "payload", Map.of("id", layer2Payload.get("layerId"), "type", "wms", "source", layer2Payload.get("source"),
+                        "visible", true));
+
+        List<Map<String, Object>> items = McpResponseItem.toMapList(List.of(
+                new McpResponseItem("layer", layer1Payload, List.of(), clientAction1),
+                new McpResponseItem("layer", layer2Payload, List.of(), clientAction2)
+        ));
+
+        return new LayerResult(Status.NEEDS_USER_CHOICE, items,
                 "Gefundene Layer zu \"" + query + "\" (Mock).");
     }
 }

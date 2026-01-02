@@ -8,7 +8,7 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
-import ch.so.agi.ask.mcp.ProcessingTools;
+import ch.so.agi.ask.mcp.McpResponseItem;
 import ch.so.agi.ask.model.ChatRequest;
 import ch.so.agi.ask.model.ChatResponse;
 import ch.so.agi.ask.model.PlannerOutput;
@@ -141,14 +141,17 @@ public class ChatOrchestrator {
                 args.putAll(tc.args());
             }
             if (selection != null && !selection.isEmpty()) {
-                //System.out.println("selection: " + selection);
-                
-                args.put("selection", selection);
-                Object id = selection.get("id");
+                Map<String, Object> payload = McpResponseItem.payload(selection);
+                Map<String, Object> selectionForArgs = new HashMap<>(payload);
+                selectionForArgs.putAll(selection);
+
+                args.put("selection", selectionForArgs);
+                String id = Optional.ofNullable(McpResponseItem.id(selection))
+                        .orElseGet(() -> Optional.ofNullable(payload.get("id")).map(String::valueOf).orElse(null));
                 if (id != null) {
                     args.put("id", id);
                 }
-                Object egrid = Optional.ofNullable(selection.get("egrid")).orElse(id);
+                Object egrid = Optional.ofNullable(payload.get("egrid")).orElse(id);
                 if (egrid != null) {
                     args.put("egrid", egrid);
                 }

@@ -74,12 +74,12 @@ public class OerebTools {
                 return new OerebResult(Status.ERROR, List.of(), "Kein Grundstück gefunden.");
             }
 
-            List<Map<String, Object>> items = parseResponse(response.getBody(), coord);
+            List<McpResponseItem> items = parseResponse(response.getBody(), coord);
             String message = items.isEmpty() ? "Kein Grundstück gefunden."
                     : (items.size() > 1 ? "Mehrere Grundstücke gefunden." : "Grundstück gefunden.");
             Status status = items.isEmpty() ? Status.ERROR
                     : (items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS);
-            return new OerebResult(status, items, message);
+            return new OerebResult(status, McpResponseItem.toMapList(items), message);
         } catch (RestClientResponseException e) {
             log.warn("ÖREB GetEGRID call failed with status {}", e.getStatusCode(), e);
             return new OerebResult(Status.ERROR, List.of(),
@@ -104,30 +104,32 @@ public class OerebTools {
             return new OerebResult(Status.ERROR, List.of(), "Kein EGRID übergeben.");
         }
 
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("id", egrid);
-        item.put("egrid", egrid);
-        item.put("label", "ÖREB-Auszug für %s".formatted(egrid));
-        item.put("pdfUrl", "https://geo.so.ch/api/oereb/extract/pdf/?EGRID=%s".formatted(egrid));
-        item.put("mapUrl", "https://geo.so.ch/map/?oereb_egrid=%s".formatted(egrid));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("id", egrid);
+        payload.put("egrid", egrid);
+        payload.put("label", "ÖREB-Auszug für %s".formatted(egrid));
+        payload.put("pdfUrl", "https://geo.so.ch/api/oereb/extract/pdf/?EGRID=%s".formatted(egrid));
+        payload.put("mapUrl", "https://geo.so.ch/map/?oereb_egrid=%s".formatted(egrid));
 
         if (args.get("selection") instanceof Map<?, ?> selectionMap) {
             Object coord = selectionMap.get("coord");
             if (coord != null) {
-                item.put("coord", coord);
+                payload.put("coord", coord);
             }
             Object geometry = selectionMap.get("geometry");
             if (geometry != null) {
-                item.put("geometry", geometry);
+                payload.put("geometry", geometry);
             }
         }
 
-        String message = "ÖREB-Auszug erstellt.\nPDF: %s\nFachanwendung: %s".formatted(item.get("pdfUrl"),
-                item.get("mapUrl"));
-        return new OerebResult(Status.SUCCESS, List.of(item), message);
+        String message = "ÖREB-Auszug erstellt.\nPDF: %s\nFachanwendung: %s".formatted(payload.get("pdfUrl"),
+                payload.get("mapUrl"));
+        return new OerebResult(Status.SUCCESS,
+                McpResponseItem.toMapList(List.of(new McpResponseItem("oereb-extract", payload, List.of(), Map.of()))),
+                message);
     }
 
-    private List<Map<String, Object>> parseResponse(String xml, List<Double> fallbackCoord) throws Exception {
+    private List<McpResponseItem> parseResponse(String xml, List<Double> fallbackCoord) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         factory.setNamespaceAware(false);
         Document doc = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
@@ -135,7 +137,7 @@ public class OerebTools {
         Element root = doc.getDocumentElement();
         NodeList children = root.getChildNodes();
 
-        List<Map<String, Object>> items = new ArrayList<>();
+        List<Map<String, Object>> payloads = new ArrayList<>();
         Map<String, Object> current = null;
         for (int i = 0; i < children.getLength(); i++) {
             Node node = children.item(i);
@@ -149,7 +151,7 @@ public class OerebTools {
                 current.put("id", text(node));
                 current.put("egrid", text(node));
                 current.put("crs", "EPSG:2056");
-                items.add(current);
+                payloads.add(current);
             }
             case "number" -> Optional.ofNullable(current).ifPresent(map -> map.put("number", text(node)));
             case "identDN" -> Optional.ofNullable(current).ifPresent(map -> map.put("identDN", text(node)));
@@ -171,14 +173,20 @@ public class OerebTools {
             }
         }
 
-        for (Map<String, Object> item : items) {
-            String egrid = (String) item.getOrDefault("egrid", item.get("id"));
-            String propertyType = Optional.ofNullable((String) item.get("propertyType")).orElse("Grundstück");
-            String number = Optional.ofNullable((String) item.get("number")).orElse("");
+        List<McpResponseItem> items = new ArrayList<>();
+        for (Map<String, Object> payload : payloads) {
+            String egrid = (String) payload.getOrDefault("egrid", payload.get("id"));
+            String propertyType = Optional.ofNullable((String) payload.get("propertyType")).orElse("Grundstück");
+            String number = Optional.ofNullable((String) payload.get("number")).orElse("");
             String label = number.isBlank() ? "%s – %s".formatted(egrid, propertyType)
                     : "%s – %s (%s)".formatted(egrid, propertyType, number);
-            item.put("label", label);
-            item.putIfAbsent("coord", fallbackCoord);
+            payload.put("label", label);
+            payload.putIfAbsent("coord", fallbackCoord);
+            payload.putIfAbsent("crs", "EPSG:2056");
+
+            Map<String, Object> clientAction = Map.of("type", "setView",
+                    "payload", Map.of("center", payload.get("coord"), "zoom", 17, "crs", payload.get("crs")));
+            items.add(new McpResponseItem("oereb-parcel", payload, List.of(), clientAction));
         }
 
         return items;

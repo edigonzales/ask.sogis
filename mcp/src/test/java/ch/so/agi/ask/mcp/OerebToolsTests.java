@@ -9,6 +9,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import ch.so.agi.ask.mcp.McpResponseItem;
+
 class OerebToolsTests {
 
     @SuppressWarnings("unchecked")
@@ -70,12 +72,13 @@ class OerebToolsTests {
         Method parse = OerebTools.class.getDeclaredMethod("parseResponse", String.class, List.class);
         parse.setAccessible(true);
 
-        List<Map<String, Object>> items = (List<Map<String, Object>>) parse.invoke(tools, xml,
+        @SuppressWarnings("unchecked")
+        List<McpResponseItem> items = (List<McpResponseItem>) parse.invoke(tools, xml,
                 List.of(2600513.0, 1215519.0));
 
         assertThat(items).hasSize(2);
-        Map<String, Object> first = items.getFirst();
-        Map<String, Object> second = items.get(1);
+        Map<String, Object> first = McpResponseItem.payload(items.getFirst().toMap());
+        Map<String, Object> second = McpResponseItem.payload(items.get(1).toMap());
 
         assertThat(first.get("egrid")).isEqualTo("CH955832730623");
         assertThat(first.get("propertyType")).isEqualTo("Liegenschaft");
@@ -92,10 +95,11 @@ class OerebToolsTests {
         Map<String, Object> result = tools.getOerebExtractById(
                 Map.of("selection", Map.of("egrid", "CH123", "coord", List.of(1d, 2d), "geometry", geometry)))
                 .items().getFirst();
+        Map<String, Object> payload = McpResponseItem.payload(result);
 
-        assertThat(result.get("pdfUrl")).isEqualTo("https://geo.so.ch/api/oereb/extract/pdf/?EGRID=CH123");
-        assertThat(result.get("mapUrl")).isEqualTo("https://geo.so.ch/map/?oereb_egrid=CH123");
-        assertThat(result.get("geometry")).isEqualTo(geometry);
-        assertThat(result.get("coord")).isEqualTo(List.of(1d, 2d));
+        assertThat(payload.get("pdfUrl")).isEqualTo("https://geo.so.ch/api/oereb/extract/pdf/?EGRID=CH123");
+        assertThat(payload.get("mapUrl")).isEqualTo("https://geo.so.ch/map/?oereb_egrid=CH123");
+        assertThat(payload.get("geometry")).isEqualTo(geometry);
+        assertThat(payload.get("coord")).isEqualTo(List.of(1d, 2d));
     }
 }

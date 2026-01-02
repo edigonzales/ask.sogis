@@ -81,7 +81,7 @@ public class FeatureSearchTools {
             String body = restClient.get().uri(uriBuilder -> uriBuilder.queryParam("filter", filter).build()).retrieve()
                     .body(String.class);
 
-            List<Map<String, Object>> items = mapFeatures(body);
+            List<McpResponseItem> items = mapFeatures(body);
             if (items.isEmpty()) {
                 return new FeatureSearchResult(Status.ERROR, List.of(),
                         "Kein Grundstück %s in %s gefunden.".formatted(number, municipality));
@@ -90,7 +90,7 @@ public class FeatureSearchTools {
             Status status = items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS;
             String message = status == Status.SUCCESS ? "EGRID ermittelt."
                     : "Mehrere Grundstücke gefunden. Bitte Auswahl treffen.";
-            return new FeatureSearchResult(status, items, message);
+            return new FeatureSearchResult(status, McpResponseItem.toMapList(items), message);
         } catch (RestClientResponseException e) {
             log.warn("Feature search call failed with status {}", e.getStatusCode(), e);
             return new FeatureSearchResult(Status.ERROR, List.of(),
@@ -105,14 +105,14 @@ public class FeatureSearchTools {
         }
     }
 
-    List<Map<String, Object>> mapFeatures(String json) throws IOException {
+    List<McpResponseItem> mapFeatures(String json) throws IOException {
         JsonNode root = objectMapper.readTree(json);
         JsonNode features = root.path("features");
         if (features == null || !features.isArray()) {
             return List.of();
         }
 
-        List<Map<String, Object>> items = new ArrayList<>();
+        List<McpResponseItem> items = new ArrayList<>();
         for (JsonNode feature : features) {
             JsonNode properties = feature.path("properties");
             String egrid = properties.path("egrid").asText(null);
@@ -131,25 +131,30 @@ public class FeatureSearchTools {
                 });
             }
 
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("id", egrid);
-            item.put("egrid", egrid);
-            item.put("label", buildLabel(number, municipality, egrid, propertyType, landRegister));
-            item.put("number", number);
-            item.put("municipality", municipality);
-            item.put("landRegister", landRegister);
-            item.put("propertyType", propertyType);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("id", egrid);
+            payload.put("egrid", egrid);
+            payload.put("label", buildLabel(number, municipality, egrid, propertyType, landRegister));
+            payload.put("number", number);
+            payload.put("municipality", municipality);
+            payload.put("landRegister", landRegister);
+            payload.put("propertyType", propertyType);
             if (geometry != null) {
-                item.put("geometry", geometry);
+                payload.put("geometry", geometry);
             }
 
             List<Double> centroid = extractCentroid(feature.path("geometry"));
             if (!centroid.isEmpty()) {
-                item.put("coord", centroid);
-                item.put("crs", "EPSG:2056");
+                payload.put("coord", centroid);
+                payload.put("crs", "EPSG:2056");
             }
 
-            items.add(item);
+            Map<String, Object> clientAction = new LinkedHashMap<>();
+            clientAction.put("type", "setView");
+            clientAction.put("payload", Map.of("center", payload.getOrDefault("coord", centroid), "zoom", 17,
+                    "crs", payload.getOrDefault("crs", "EPSG:2056")));
+
+            items.add(new McpResponseItem("oereb-parcel", payload, List.of(), clientAction));
         }
 
         return items;

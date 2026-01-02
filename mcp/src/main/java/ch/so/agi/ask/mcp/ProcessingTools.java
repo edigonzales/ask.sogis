@@ -131,19 +131,22 @@ public class ProcessingTools {
                         "Erdwärmesonden-Antwort enthält kein Resultat.");
             }
 
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("id", "geothermal-%s-%s".formatted(DECIMAL_FORMAT.format(coord.get(0)),
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("id", "geothermal-%s-%s".formatted(DECIMAL_FORMAT.format(coord.get(0)),
                     DECIMAL_FORMAT.format(coord.get(1))));
-            item.put("label", "Geothermal probe feasibility");
-            item.put("coord", coord);
-            item.put("crs", "EPSG:2056");
-            item.put("result", parsed.resultText());
+            payload.put("label", "Geothermal probe feasibility");
+            payload.put("coord", coord);
+            payload.put("crs", "EPSG:2056");
+            payload.put("result", parsed.resultText());
             if (parsed.linkInfo() != null) {
                 Optional.ofNullable(parsed.linkInfo().href()).filter(s -> !s.isBlank()).ifPresent(url -> {
-                    item.put("pdfUrl", url);
-                    item.put("pdfLabel", parsed.linkInfo().displayLabel());
+                    payload.put("pdfUrl", url);
+                    payload.put("pdfLabel", parsed.linkInfo().displayLabel());
                 });
             }
+
+            Map<String, Object> clientAction = Map.of("type", "setView",
+                    "payload", Map.of("center", coord, "zoom", 17, "crs", "EPSG:2056"));
 
             String message = parsed.resultText();
             Optional<String> linkOpt = Optional.ofNullable(parsed.linkInfo()).flatMap(info -> Optional.ofNullable(info.href()));
@@ -152,7 +155,8 @@ public class ProcessingTools {
                         .formatted(linkOpt.get());
                 message = message == null || message.isBlank() ? anchor : (message + " " + anchor);
             }
-            return new ProcessingResult(Status.SUCCESS, List.of(item), message);
+            return new ProcessingResult(Status.SUCCESS, McpResponseItem.toMapList(
+                    List.of(new McpResponseItem("geothermal", payload, List.of(), clientAction))), message);
         } catch (RestClientResponseException e) {
             log.warn("Geothermal GetFeatureInfo failed with status {}", e.getStatusCode(), e);
             return new ProcessingResult(Status.ERROR, List.of(),
