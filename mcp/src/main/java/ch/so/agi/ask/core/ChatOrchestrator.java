@@ -156,7 +156,7 @@ public class ChatOrchestrator {
                     args.put("egrid", egrid);
                 }
                 Object coord = payload.get("coord");
-                if (coord != null && !args.containsKey("coord")) {
+                if (coord != null) {
                     args.put("coord", coord);
                     if (coord instanceof List<?> coords && coords.size() >= 2) {
                         Object x = coords.get(0);
