@@ -143,7 +143,7 @@ public class ChatOrchestrator {
             if (selection != null && !selection.isEmpty()) {
                 Map<String, Object> payload = McpResponseItem.payload(selection);
                 Map<String, Object> selectionForArgs = new HashMap<>(payload);
-                selectionForArgs.putAll(selection);
+                Optional.ofNullable(McpResponseItem.itemType(selection)).ifPresent(type -> selectionForArgs.put("type", type));
 
                 args.put("selection", selectionForArgs);
                 String id = Optional.ofNullable(McpResponseItem.id(selection))
@@ -154,6 +154,20 @@ public class ChatOrchestrator {
                 Object egrid = Optional.ofNullable(payload.get("egrid")).orElse(id);
                 if (egrid != null) {
                     args.put("egrid", egrid);
+                }
+                Object coord = payload.get("coord");
+                if (coord != null && !args.containsKey("coord")) {
+                    args.put("coord", coord);
+                    if (coord instanceof List<?> coords && coords.size() >= 2) {
+                        Object x = coords.get(0);
+                        Object y = coords.get(1);
+                        args.putIfAbsent("x", x);
+                        args.putIfAbsent("y", y);
+                    }
+                }
+                Object crs = payload.get("crs");
+                if (crs != null) {
+                    args.putIfAbsent("crs", crs);
                 }
             }
 
