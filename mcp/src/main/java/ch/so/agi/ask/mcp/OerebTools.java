@@ -116,9 +116,22 @@ public class OerebTools {
             if (coord != null) {
                 payload.put("coord", coord);
             }
+            Object centroid = selectionMap.get("centroid");
+            if (centroid != null) {
+                payload.put("centroid", centroid);
+            }
             Object geometry = selectionMap.get("geometry");
             if (geometry != null) {
-                payload.put("geometry", geometry);
+                Map<String, Object> normalizedGeometry = McpResponseItem.normalizeGeometry(geometry);
+                payload.put("geometry", normalizedGeometry);
+                List<Double> extent = McpResponseItem.deriveExtent(normalizedGeometry);
+                if (!extent.isEmpty()) {
+                    payload.put("extent", extent);
+                }
+            }
+            Object extent = selectionMap.get("extent");
+            if (extent != null) {
+                payload.putIfAbsent("extent", extent);
             }
         }
 
@@ -160,10 +173,16 @@ public class OerebTools {
             case "limit" -> Optional.ofNullable(current).ifPresent(map -> {
                 GeometryResult geometry = extractGeometry((Element) node);
                 if (geometry.geoJson() != null) {
-                    map.put("geometry", geometry.geoJson());
+                    Map<String, Object> normalizedGeometry = McpResponseItem.normalizeGeometry(geometry.geoJson());
+                    map.put("geometry", normalizedGeometry);
+                    List<Double> extent = McpResponseItem.deriveExtent(normalizedGeometry);
+                    if (!extent.isEmpty()) {
+                        map.put("extent", extent);
+                    }
                 }
                 if (!geometry.centroid().isEmpty()) {
                     map.put("coord", geometry.centroid());
+                    map.put("centroid", geometry.centroid());
                 } else if (!fallbackCoord.isEmpty()) {
                     map.put("coord", fallbackCoord);
                 }
@@ -182,7 +201,15 @@ public class OerebTools {
                     : "%s – %s (%s)".formatted(egrid, propertyType, number);
             payload.put("label", label);
             payload.putIfAbsent("coord", fallbackCoord);
+            payload.putIfAbsent("centroid", payload.get("coord"));
             payload.putIfAbsent("crs", "EPSG:2056");
+            if (payload.containsKey("geometry") && !payload.containsKey("extent")) {
+                Map<String, Object> geometry = McpResponseItem.normalizeGeometry(payload.get("geometry"));
+                List<Double> extent = McpResponseItem.deriveExtent(geometry);
+                if (!extent.isEmpty()) {
+                    payload.put("extent", extent);
+                }
+            }
 
             Map<String, Object> clientAction = Map.of("type", "setView",
                     "payload", Map.of("center", payload.get("coord"), "zoom", 17, "crs", payload.get("crs")));

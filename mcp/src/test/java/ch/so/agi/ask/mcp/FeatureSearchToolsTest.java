@@ -67,5 +67,7 @@ class FeatureSearchToolsTest {
         assertThat(first.get("label")).asString().contains("168").contains("Messen").contains("CH807306583219");
         assertThat(first.get("geometry")).isInstanceOf(Map.class);
         assertThat(first.get("coord")).isInstanceOf(List.class);
+        assertThat(first.get("centroid")).isEqualTo(first.get("coord"));
+        assertThat(first.get("extent")).isEqualTo(List.of(2600583.833, 1215641.602, 2600604.65, 1215654.526));
     }
 }

@@ -33,9 +33,14 @@ class GeolocationToolsTest {
         assertEquals("623490242", payload.get("id"));
         assertEquals("Langendorfstrasse 19b, 4500 Solothurn", payload.get("label"));
         assertEquals("EPSG:2056", payload.get("crs"));
-        assertEquals(List.of(2605899.0, 1229278.0, 2605899.0, 1229278.0), payload.get("coord"));
+        assertEquals(List.of(2605899.0, 1229278.0), payload.get("coord"));
+        assertEquals(List.of(2605899.0, 1229278.0), payload.get("centroid"));
+        assertEquals(List.of(2605899.0, 1229278.0, 2605899.0, 1229278.0), payload.get("extent"));
         assertEquals("geolocation", item.get("type"));
         assertTrue(item.containsKey("clientAction"));
+        Map<String, Object> clientAction = (Map<String, Object>) item.get("clientAction");
+        Map<String, Object> actionPayload = (Map<String, Object>) clientAction.get("payload");
+        assertEquals(payload.get("coord"), actionPayload.get("center"));
     }
 
     @Test

@@ -127,8 +127,9 @@ public class FeatureSearchTools {
 
             Map<String, Object> geometry = null;
             if (feature.hasNonNull("geometry")) {
-                geometry = objectMapper.convertValue(feature.get("geometry"), new TypeReference<>() {
-                });
+                geometry = McpResponseItem.normalizeGeometry(objectMapper.convertValue(feature.get("geometry"),
+                        new TypeReference<Map<String, Object>>() {
+                        }));
             }
 
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -139,14 +140,19 @@ public class FeatureSearchTools {
             payload.put("municipality", municipality);
             payload.put("landRegister", landRegister);
             payload.put("propertyType", propertyType);
-            if (geometry != null) {
+            List<Double> centroid = geometry == null ? List.of() : McpResponseItem.deriveCentroid(geometry);
+            List<Double> extent = geometry == null ? List.of() : McpResponseItem.deriveExtent(geometry);
+
+            if (geometry != null && !geometry.isEmpty()) {
                 payload.put("geometry", geometry);
             }
-
-            List<Double> centroid = extractCentroid(feature.path("geometry"));
             if (!centroid.isEmpty()) {
                 payload.put("coord", centroid);
+                payload.put("centroid", centroid);
                 payload.put("crs", "EPSG:2056");
+            }
+            if (!extent.isEmpty()) {
+                payload.put("extent", extent);
             }
 
             Map<String, Object> clientAction = new LinkedHashMap<>();
@@ -183,45 +189,6 @@ public class FeatureSearchTools {
         }
         label.append(" – ").append(egrid);
         return label.toString().trim();
-    }
-
-    private List<Double> extractCentroid(JsonNode geometryNode) {
-        if (geometryNode == null || geometryNode.isMissingNode()) {
-            return List.of();
-        }
-        List<List<Double>> coords = new ArrayList<>();
-        collectCoordinates(geometryNode.path("coordinates"), coords);
-        if (coords.isEmpty()) {
-            return List.of();
-        }
-        double sumX = 0d;
-        double sumY = 0d;
-        int count = 0;
-        for (List<Double> coord : coords) {
-            if (coord.size() < 2) {
-                continue;
-            }
-            sumX += coord.get(0);
-            sumY += coord.get(1);
-            count++;
-        }
-        if (count == 0) {
-            return List.of();
-        }
-        return List.of(sumX / count, sumY / count);
-    }
-
-    private void collectCoordinates(JsonNode node, List<List<Double>> coords) {
-        if (node == null || node.isMissingNode()) {
-            return;
-        }
-        if (node.isArray()) {
-            if (node.size() >= 2 && node.get(0).isNumber() && node.get(1).isNumber()) {
-                coords.add(List.of(node.get(0).asDouble(), node.get(1).asDouble()));
-            } else {
-                node.forEach(child -> collectCoordinates(child, coords));
-            }
-        }
     }
 
     private String asTrimmedString(Object value) {
