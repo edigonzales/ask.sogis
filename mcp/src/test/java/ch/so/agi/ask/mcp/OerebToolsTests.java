@@ -1,6 +1,7 @@
 package ch.so.agi.ask.mcp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -83,6 +84,11 @@ class OerebToolsTests {
         assertThat(first.get("egrid")).isEqualTo("CH955832730623");
         assertThat(first.get("propertyType")).isEqualTo("Liegenschaft");
         assertThat(first.get("geometry")).isInstanceOf(Map.class);
+        List<Double> centroid = (List<Double>) first.get("centroid");
+        assertThat(centroid).hasSize(2);
+        assertThat(centroid.get(0)).isCloseTo(2600490.19875, within(1e-6));
+        assertThat(centroid.get(1)).isCloseTo(1215524.39175, within(1e-6));
+        assertThat(first.get("extent")).isEqualTo(List.of(2600483.775, 1215520.876, 2600508.524, 1215534.428));
         assertThat(second.get("label")).asString().contains("Baurecht");
         assertThat(second.get("geometry")).isInstanceOf(Map.class);
         assertThat(second.get("coord")).isInstanceOf(List.class);
@@ -101,5 +107,6 @@ class OerebToolsTests {
         assertThat(payload.get("mapUrl")).isEqualTo("https://geo.so.ch/map/?oereb_egrid=CH123");
         assertThat(payload.get("geometry")).isEqualTo(geometry);
         assertThat(payload.get("coord")).isEqualTo(List.of(1d, 2d));
+        assertThat(payload.get("extent")).isEqualTo(List.of(1d, 2d, 1d, 2d));
     }
 }

@@ -145,17 +145,37 @@ public class GeolocationTools {
 
         List<Double> bboxValues = new ArrayList<>();
         bboxNode.forEach(coord -> bboxValues.add(coord.asDouble()));
+        List<Double> centroid = computeCentroidFromExtent(bboxValues);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("id", id);
         payload.put("label", label);
-        payload.put("coord", bboxValues);
+        payload.put("coord", centroid.isEmpty() ? bboxValues : centroid);
+        payload.put("centroid", centroid);
+        payload.put("extent", bboxValues);
         payload.put("crs", srid);
 
         Map<String, Object> clientAction = Map.of(
                 "type", "setView",
-                "payload", Map.of("center", bboxValues, "zoom", 17, "crs", srid));
+                "payload", Map.of("center", centroid.isEmpty() ? bboxValues : centroid, "zoom", 17, "crs", srid));
         return Optional.of(new McpResponseItem("geolocation", payload, List.of(), clientAction));
+    }
+
+    private List<Double> computeCentroidFromExtent(List<Double> extent) {
+        if (extent == null || (extent.size() != 4 && extent.size() != 2)) {
+            return List.of();
+        }
+        if (extent.size() == 2) {
+            return extent;
+        }
+        Double minX = extent.get(0);
+        Double minY = extent.get(1);
+        Double maxX = extent.get(2);
+        Double maxY = extent.get(3);
+        if (minX == null || minY == null || maxX == null || maxY == null) {
+            return List.of();
+        }
+        return List.of((minX + maxX) / 2d, (minY + maxY) / 2d);
     }
 
     private String sanitizeLabel(String display) {
