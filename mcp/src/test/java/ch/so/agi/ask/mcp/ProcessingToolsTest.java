@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import ch.so.agi.ask.config.LandregPrintProperties;
+
 class ProcessingToolsTest {
 
     private static final String SAMPLE_XML = """
@@ -40,7 +42,7 @@ class ProcessingToolsTest {
 
     @Test
     void parseFeatureInfo_extractsResultTextAndPdfLink() throws Exception {
-        ProcessingTools tools = new ProcessingTools(RestClient.builder());
+        ProcessingTools tools = new ProcessingTools(RestClient.builder(), new LandregPrintProperties());
 
         ProcessingTools.ParsedFeature parsed = tools.parseFeatureInfo(SAMPLE_XML);
 
