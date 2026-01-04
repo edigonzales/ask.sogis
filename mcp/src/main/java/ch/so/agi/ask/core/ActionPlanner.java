@@ -108,6 +108,25 @@ public class ActionPlanner {
                             Map.of("id", "geothermal-" + payload.getOrDefault("id", "probe"), "coord", coord,
                                     "style", "pin-default", "label", label)));
         }
+        case CADASTRAL_PLAN -> {
+            List<MapAction> actions = new ArrayList<>();
+            List<Double> extent = McpResponseItem.extent(Map.of("payload", payload));
+            List<Double> center = extent.size() >= 4
+                    ? List.of((extent.get(0) + extent.get(2)) / 2.0, (extent.get(1) + extent.get(3)) / 2.0)
+                    : McpResponseItem.centroid(Map.of("payload", payload));
+
+            if (!center.isEmpty()) {
+                actions.add(new MapAction("setView",
+                        Map.of("center", center, "zoom", 17, "crs", payload.getOrDefault("crs", "EPSG:2056"))));
+            }
+            var geometry = payload.get("geometry");
+            if (geometry != null) {
+                actions.add(new MapAction("addLayer",
+                        Map.of("id", "cadastral-plan-" + payload.getOrDefault("id", "plan"), "type", "geojson",
+                                "source", Map.of("data", geometry, "style", "highlight"))));
+            }
+            yield actions;
+        }
         default -> List.of();
         };
     }
