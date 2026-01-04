@@ -65,7 +65,7 @@ class ProcessingToolsCadastralPlanTests {
                         List.of(0d, 0d))));
 
         ProcessingTools.ProcessingResult result = tools
-                .getCadastralPlanByEgrid(Map.of("egrid", "CH123456789", "selection", Map.of("geometry", geometry)));
+                .getCadastralPlanByGeometry(Map.of("geometry", geometry));
 
         server.verify();
 

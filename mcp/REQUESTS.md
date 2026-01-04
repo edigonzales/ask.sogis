@@ -48,4 +48,4 @@ curl --header "Content-Type: application/json" \
 
 ### uc 8
 - Mache mir einen Grundbuchplan des Grundstücks 123 in Messen.
-  (grundstücksnummer + gemeinde -> egrid -> grundbuchplan PDF)
+  (grundstücksnummer + gemeinde -> egrid/geometry -> grundbuchplan PDF)

@@ -180,18 +180,13 @@ public class ProcessingTools {
         }
     }
 
-    @McpTool(name = "processing.getCadastralPlanByEgrid", description = "Erzeugt einen Grundbuchplan-PDF aus einem EGRID via Landregister-Print-Service")
-    public ProcessingResult getCadastralPlanByEgrid(
-            @McpToolParam(description = "Muss ein EGRID enthalten; optional selection mit Geometrie/Extent", required = true)
-            @McpToolArgSchema("{ 'egrid': 'string id', 'selection': { 'egrid'|'id': 'string', 'geometry': 'GeoJSON', 'extent': '[minX,minY,maxX,maxY]', 'coord': '[east, north]' } }")
+    @McpTool(name = "processing.getCadastralPlanByGeometry", description = "Erzeugt einen Grundbuchplan-PDF aus einer GeoJSON-Geometrie via Landregister-Print-Service")
+    public ProcessingResult getCadastralPlanByGeometry(
+            @McpToolParam(description = "GeoJSON-Geometrie des Grundstücks", required = true)
+            @McpToolArgSchema("{ 'geometry': 'GeoJSON' }")
             Map<String, Object> args) {
-        String egrid = extractEgrid(args);
-        if (egrid == null || egrid.isBlank()) {
-            return new ProcessingResult(Status.ERROR, List.of(), "Kein EGRID übergeben.");
-        }
-
         GeometryInput geometry = resolveGeometry(args);
-        if (geometry.extent().isEmpty()) {
+        if (geometry.geometry().isEmpty() || geometry.extent().isEmpty()) {
             return new ProcessingResult(Status.ERROR, List.of(),
                     "Keine Geometrie/Extent für den Grundbuchplan übergeben.");
         }
@@ -200,6 +195,8 @@ public class ProcessingTools {
         if (printRequest == null) {
             return new ProcessingResult(Status.ERROR, List.of(), "Extent konnte nicht berechnet werden.");
         }
+
+        String egrid = extractEgrid(args);
 
         try {
             MultiValueMap<String, String> body = buildPrintFormBody(printRequest);
@@ -219,9 +216,12 @@ public class ProcessingTools {
             List<Double> center = geometry.centroid().isEmpty() ? deriveCenter(printRequest.extent()) : geometry.centroid();
 
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("id", egrid);
-            payload.put("egrid", egrid);
-            payload.put("label", "Grundbuchplan " + egrid);
+            payload.put("id", Optional.ofNullable(egrid).orElse("cadastral-plan"));
+            Optional.ofNullable(egrid).ifPresent(idVal -> {
+                payload.put("egrid", idVal);
+                payload.put("label", "Grundbuchplan " + idVal);
+            });
+            payload.putIfAbsent("label", "Grundbuchplan");
             payload.put("extent", printRequest.extent());
             payload.put("scaleDenominator", printRequest.scaleDenominator());
             payload.put("gridInterval", printRequest.gridInterval());

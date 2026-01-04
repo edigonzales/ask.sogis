@@ -105,6 +105,56 @@ public class FeatureSearchTools {
         }
     }
 
+    @McpTool(
+            name = "featureSearch.getParcelByEgrid",
+            description = """
+                    Liefert Geometrie und Grundbuch-Attribute eines Grundstücks anhand des EGRID über den geo.so.ch-Feature-Service.
+                    """
+    )
+    public FeatureSearchResult getParcelByEgrid(
+            @McpToolParam(
+                    description = "Erwartet das EGRID des Grundstücks (z.B. \"CH123456789\").",
+                    required = true
+            )
+            @McpToolArgSchema("{ 'egrid': 'string - Grundstück EGRID' }")
+            Map<String, Object> args) {
+
+        String egrid = asTrimmedString(args.get("egrid"));
+        if (egrid.isBlank()) {
+            return new FeatureSearchResult(Status.ERROR, List.of(), "EGRID ist erforderlich.");
+        }
+
+        log.info("MCP featureSearch.getParcelByEgrid called with egrid={}", egrid);
+
+        try {
+            String filter = buildEgridFilter(egrid);
+            String body = restClient.get().uri(uriBuilder -> uriBuilder.queryParam("filter", filter).build()).retrieve()
+                    .body(String.class);
+
+            List<McpResponseItem> items = mapFeatures(body);
+            if (items.isEmpty()) {
+                return new FeatureSearchResult(Status.ERROR, List.of(),
+                        "Kein Grundstück mit EGRID %s gefunden.".formatted(egrid));
+            }
+
+            Status status = items.size() > 1 ? Status.NEEDS_USER_CHOICE : Status.SUCCESS;
+            String message = status == Status.SUCCESS ? "Grundstück ermittelt."
+                    : "Mehrere Grundstücke gefunden. Bitte Auswahl treffen.";
+            return new FeatureSearchResult(status, McpResponseItem.toMapList(items), message);
+        } catch (RestClientResponseException e) {
+            log.warn("Parcel search call failed with status {}", e.getStatusCode(), e);
+            return new FeatureSearchResult(Status.ERROR, List.of(),
+                    "Feature-Service antwortete nicht erfolgreich (HTTP " + e.getStatusCode().value() + ").");
+        } catch (RestClientException e) {
+            log.error("Parcel search request failed", e);
+            return new FeatureSearchResult(Status.ERROR, List.of(), "Feature-Service konnte nicht erreicht werden.");
+        } catch (IOException e) {
+            log.error("Failed to parse parcel search response", e);
+            return new FeatureSearchResult(Status.ERROR, List.of(),
+                    "Antwort des Feature-Service konnte nicht verarbeitet werden.");
+        }
+    }
+
     List<McpResponseItem> mapFeatures(String json) throws IOException {
         JsonNode root = objectMapper.readTree(json);
         JsonNode features = root.path("features");
@@ -124,6 +174,9 @@ public class FeatureSearchTools {
             String municipality = properties.path("gemeinde").asText("");
             String landRegister = properties.path("grundbuch").asText("");
             String propertyType = properties.path("art_txt").asText("");
+            String bfsNr = properties.path("bfs_nr").asText("");
+            String nbident = properties.path("nbident").asText("");
+            String flaechenmass = properties.path("flaechenmass").asText("");
 
             Map<String, Object> geometry = null;
             if (feature.hasNonNull("geometry")) {
@@ -140,6 +193,13 @@ public class FeatureSearchTools {
             payload.put("municipality", municipality);
             payload.put("landRegister", landRegister);
             payload.put("propertyType", propertyType);
+            payload.put("grundstuecksart", propertyType);
+            payload.put("nummer", number);
+            payload.put("grundbuch", landRegister);
+            payload.put("gemeinde", municipality);
+            payload.put("bfs_nr", bfsNr);
+            payload.put("nbident", nbident);
+            payload.put("flaechenmass", flaechenmass);
             List<Double> centroid = geometry == null ? List.of() : McpResponseItem.deriveCentroid(geometry);
             List<Double> extent = geometry == null ? List.of() : McpResponseItem.deriveExtent(geometry);
 
@@ -170,6 +230,11 @@ public class FeatureSearchTools {
         String safeNumber = number.replace("\"", "\\\"");
         String safeMunicipality = municipality.replace("\"", "\\\"");
         return "[[\"nummer\",\"=\",\"%s\"],\"and\",[\"gemeinde\",\"=\",\"%s\"]]".formatted(safeNumber, safeMunicipality);
+    }
+
+    private String buildEgridFilter(String egrid) {
+        String safeEgrid = egrid.replace("\"", "\\\"");
+        return "[[\"egrid\",\"=\",\"%s\"]]".formatted(safeEgrid);
     }
 
     private String buildLabel(String number, String municipality, String egrid, String propertyType,

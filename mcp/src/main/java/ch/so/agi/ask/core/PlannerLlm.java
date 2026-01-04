@@ -179,7 +179,7 @@ public class PlannerLlm {
                 - Wenn der User "mache mir einen Grundbuchplan für Grundstück 123 in Messen" schreibt, erzeuge einen Schritt
                   (cadastral_plan) mit zwei ToolCalls:
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "number": "123", "municipality": "Messen" } },
-                    { "capabilityId": "%s", "args": { "egrid": "CH1234567891012" } } ] } ]
+                    { "capabilityId": "%s", "args": { "geometry": { /* GeoJSON aus Auswahl */ } } } ] } ]
 
                 ANTWORT:
                 - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
@@ -211,7 +211,7 @@ public class PlannerLlm {
                 McpToolCapability.OEREB_EXTRACT_BY_ID.id(),
                 IntentType.CADASTRAL_PLAN.id(),
                 McpToolCapability.FEATURE_SEARCH_EGRID_BY_NUMBER_AND_MUNICIPALITY.id(),
-                McpToolCapability.PROCESSING_CADASTRAL_PLAN_BY_EGRID.id());
+                McpToolCapability.PROCESSING_CADASTRAL_PLAN_BY_GEOMETRY.id());
     }
 
     private PlannerOutput maybeMockOerebPlan(String userMessage) {
