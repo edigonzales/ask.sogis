@@ -5,6 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 
+import ch.so.agi.ask.config.LandregPrintProperties;
+import ch.so.agi.ask.mcp.PrintFileStorage;
+import java.time.Clock;
+
 class ProcessingToolsTest {
 
     private static final String SAMPLE_XML = """
@@ -40,7 +44,9 @@ class ProcessingToolsTest {
 
     @Test
     void parseFeatureInfo_extractsResultTextAndPdfLink() throws Exception {
-        ProcessingTools tools = new ProcessingTools(RestClient.builder());
+        LandregPrintProperties properties = new LandregPrintProperties();
+        ProcessingTools tools = new ProcessingTools(RestClient.builder(), properties,
+                new PrintFileStorage(properties, Clock.systemUTC()));
 
         ProcessingTools.ParsedFeature parsed = tools.parseFeatureInfo(SAMPLE_XML);
 

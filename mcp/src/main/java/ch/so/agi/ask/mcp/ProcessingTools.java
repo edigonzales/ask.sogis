@@ -18,8 +18,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springaicommunity.mcp.annotation.McpTool;
 import org.springaicommunity.mcp.annotation.McpToolParam;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
@@ -32,6 +35,8 @@ import org.xml.sax.InputSource;
 
 import ch.so.agi.ask.mcp.ToolResult.Status;
 import ch.so.agi.ask.mcp.McpToolArgSchema;
+import ch.so.agi.ask.config.LandregPrintProperties;
+import ch.so.agi.ask.mcp.PrintFileStorage;
 
 @Component
 public class ProcessingTools {
@@ -45,10 +50,17 @@ public class ProcessingTools {
     private static final Pattern HREF_PATTERN = Pattern.compile("href=['\\\"]([^'\\\"]+)['\\\"]", Pattern.CASE_INSENSITIVE);
     private static final Pattern LINK_TEXT_PATTERN = Pattern.compile(">([^<]+)<");
 
-    private final RestClient restClient;
+    private final RestClient geothermalClient;
+    private final RestClient landregPrintClient;
+    private final LandregPrintProperties landregPrintProperties;
+    private final PrintFileStorage printFileStorage;
 
-    public ProcessingTools(RestClient.Builder restClientBuilder) {
-        this.restClient = restClientBuilder.baseUrl(BASE_URL).build();
+    public ProcessingTools(RestClient.Builder restClientBuilder, LandregPrintProperties landregPrintProperties,
+            PrintFileStorage printFileStorage) {
+        this.geothermalClient = restClientBuilder.baseUrl(BASE_URL).build();
+        this.landregPrintClient = restClientBuilder.baseUrl(landregPrintProperties.getService()).build();
+        this.landregPrintProperties = landregPrintProperties;
+        this.printFileStorage = printFileStorage;
     }
 
     public record ProcessingResult(Status status, List<Map<String, Object>> items, String message)
@@ -118,7 +130,7 @@ public class ProcessingTools {
 
             log.info("Geothermal GetFeatureInfo request: {}", uri);
 
-            ResponseEntity<String> response = restClient.get().uri(uri).retrieve().toEntity(String.class);
+            ResponseEntity<String> response = geothermalClient.get().uri(uri).retrieve().toEntity(String.class);
 
             if (response.getStatusCode().isError() || response.getBody() == null || response.getBody().isBlank()) {
                 return new ProcessingResult(Status.ERROR, List.of(),
@@ -169,6 +181,86 @@ public class ProcessingTools {
             log.error("Error processing geothermal response", e);
             return new ProcessingResult(Status.ERROR, List.of(),
                     "Erdwärmesonden-Antwort konnte nicht verarbeitet werden.");
+        }
+    }
+
+    @McpTool(name = "processing.getCadastralPlanByGeometry", description = "Erzeugt einen Grundbuchplan-PDF aus einer GeoJSON-Geometrie via Landregister-Print-Service")
+    public ProcessingResult getCadastralPlanByGeometry(
+            @McpToolParam(description = "GeoJSON-Geometrie des Grundstücks", required = true)
+            @McpToolArgSchema("{ 'geometry': 'GeoJSON' }")
+            Map<String, Object> args) {
+        GeometryInput geometry = resolveGeometry(args);
+        if (geometry.geometry().isEmpty() || geometry.extent().isEmpty()) {
+            return new ProcessingResult(Status.ERROR, List.of(),
+                    "Keine Geometrie/Extent für den Grundbuchplan übergeben.");
+        }
+
+        PrintRequest printRequest = buildPrintRequest(geometry.extent());
+        if (printRequest == null) {
+            return new ProcessingResult(Status.ERROR, List.of(), "Extent konnte nicht berechnet werden.");
+        }
+
+        String egrid = extractEgrid(args);
+
+        try {
+            MultiValueMap<String, String> body = buildPrintFormBody(printRequest);
+            ResponseEntity<byte[]> response = landregPrintClient.post().uri(landregPrintProperties.getService())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(body)
+                    .retrieve()
+                    .toEntity(byte[].class);
+
+            if (response.getStatusCode().isError() || response.getBody() == null || response.getBody().length == 0) {
+                return new ProcessingResult(Status.ERROR, List.of(),
+                        "Landregister-Print-Service antwortete nicht erfolgreich.");
+            }
+
+            PrintFileStorage.StoredPdf stored = printFileStorage.storePdf(response.getBody());
+            List<Double> center = geometry.centroid().isEmpty() ? deriveCenter(printRequest.extent()) : geometry.centroid();
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("id", Optional.ofNullable(egrid).orElse("cadastral-plan"));
+            Optional.ofNullable(egrid).ifPresent(idVal -> {
+                payload.put("egrid", idVal);
+                payload.put("label", "Grundbuchplan " + idVal);
+            });
+            payload.putIfAbsent("label", "Grundbuchplan");
+            payload.put("extent", printRequest.extent());
+            payload.put("scaleDenominator", printRequest.scaleDenominator());
+            payload.put("gridInterval", printRequest.gridInterval());
+            payload.put("template", landregPrintProperties.getTemplate());
+            payload.put("dpi", landregPrintProperties.getDpi());
+            payload.put("srs", landregPrintProperties.getSrs());
+            payload.put("pdfUrl", stored.url());
+            payload.put("pdfSize", stored.size());
+            payload.put("expiresAt", stored.expiresAt().toString());
+            if (!geometry.geometry().isEmpty()) {
+                payload.put("geometry", geometry.geometry());
+            }
+            if (!center.isEmpty()) {
+                payload.put("coord", center);
+                payload.put("crs", landregPrintProperties.getSrs());
+            }
+
+            Map<String, Object> clientAction = center.isEmpty() ? Map.of()
+                    : Map.of("type", "setView",
+                            "payload", Map.of("center", center, "zoom", 17, "crs", landregPrintProperties.getSrs()));
+
+            String message = "Grundbuchplan erstellt. http://localhost:8080" + stored.url();
+            return new ProcessingResult(Status.SUCCESS,
+                    McpResponseItem.toMapList(
+                            List.of(new McpResponseItem("cadastral-plan", payload, List.of(), clientAction))),
+                    message);
+        } catch (RestClientResponseException e) {
+            log.warn("Landregister-Print-Service antwortete mit Status {}", e.getStatusCode(), e);
+            return new ProcessingResult(Status.ERROR, List.of(),
+                    "Landregister-Print-Service antwortete nicht erfolgreich (HTTP " + e.getStatusCode().value() + ").");
+        } catch (RestClientException e) {
+            log.error("Landregister-Print-Service nicht erreichbar", e);
+            return new ProcessingResult(Status.ERROR, List.of(), "Landregister-Print-Service konnte nicht erreicht werden.");
+        } catch (Exception e) {
+            log.error("Fehler beim Erzeugen des Grundbuchplans", e);
+            return new ProcessingResult(Status.ERROR, List.of(), "Grundbuchplan konnte nicht erzeugt werden.");
         }
     }
 
@@ -237,6 +329,138 @@ public class ProcessingTools {
         DecimalFormat df = new DecimalFormat("0.####", symbols);
         df.setGroupingUsed(false);
         return df;
+    }
+
+    PrintRequest buildPrintRequest(List<Double> extent) {
+        if (extent == null || extent.size() < 4) {
+            return null;
+        }
+        double minX = extent.get(0);
+        double minY = extent.get(1);
+        double maxX = extent.get(2);
+        double maxY = extent.get(3);
+        double width = maxX - minX;
+        double height = maxY - minY;
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+
+        var allowedScales = new java.util.TreeSet<>(landregPrintProperties.getAllowedScales());
+        var allowedGridIntervals = new java.util.TreeSet<>(landregPrintProperties.getAllowedGridIntervals());
+        if (allowedScales.isEmpty() || allowedGridIntervals.isEmpty()) {
+            return null;
+        }
+
+        double scaleW = landregPrintProperties.getLayoutWidth() / width;
+        double scaleH = landregPrintProperties.getLayoutHeight() / height;
+
+        boolean scaleFitW = scaleW < scaleH;
+        double scaleDenominator = 1.0 / Math.min(scaleW, scaleH);
+
+        Integer fitScaleDen = allowedScales.higher((int) Math.ceil(scaleDenominator));
+        if (fitScaleDen == null) {
+            fitScaleDen = allowedScales.last();
+        }
+
+        double factor = fitScaleDen / scaleDenominator;
+        double newWidth;
+        double newHeight;
+        if (scaleFitW) {
+            newWidth = factor * width;
+            newHeight = newWidth * landregPrintProperties.getLayoutHeight() / landregPrintProperties.getLayoutWidth();
+        } else {
+            newHeight = factor * height;
+            newWidth = newHeight * landregPrintProperties.getLayoutWidth() / landregPrintProperties.getLayoutHeight();
+        }
+
+        double centerX = (minX + maxX) / 2.0;
+        double centerY = (minY + maxY) / 2.0;
+
+        double newMinX = centerX - 0.5 * newWidth;
+        double newMinY = centerY - 0.5 * newHeight;
+        double newMaxX = centerX + 0.5 * newWidth;
+        double newMaxY = centerY + 0.5 * newHeight;
+
+        int divisor = Math.max(1, landregPrintProperties.getGridIntervalTargetDivisor());
+        Integer gridInterval = allowedGridIntervals.ceiling((int) Math.ceil(newWidth / divisor));
+        if (gridInterval == null) {
+            gridInterval = allowedGridIntervals.last();
+        }
+
+        return new PrintRequest(List.of(newMinX, newMinY, newMaxX, newMaxY), fitScaleDen, gridInterval);
+    }
+
+    private MultiValueMap<String, String> buildPrintFormBody(PrintRequest request) {
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("TEMPLATE", landregPrintProperties.getTemplate());
+        body.add("scale", String.valueOf(request.scaleDenominator()));
+        body.add("rotation", "0");
+        body.add("extent", formatExtent(request.extent()));
+        body.add("SRS", landregPrintProperties.getSrs());
+        body.add("GRID_INTERVAL_X", String.valueOf(request.gridInterval()));
+        body.add("GRID_INTERVAL_Y", String.valueOf(request.gridInterval()));
+        body.add("DPI", String.valueOf(landregPrintProperties.getDpi()));
+        return body;
+    }
+
+    private GeometryInput resolveGeometry(Map<String, Object> args) {
+        Map<String, Object> payload = Map.of();
+        if (args.get("selection") instanceof Map<?, ?> selectionMap) {
+            Map<String, Object> normalizedSelection = new LinkedHashMap<>();
+            selectionMap.forEach((k, v) -> normalizedSelection.put(String.valueOf(k), v));
+            payload = McpResponseItem.payload(normalizedSelection);
+        } else if (args != null) {
+            payload = McpResponseItem.payload(args);
+        }
+
+        Map<String, Object> geometry = McpResponseItem.normalizeGeometry(payload.get("geometry"));
+        List<Double> extent = McpResponseItem.extent(payload);
+        List<Double> centroid = McpResponseItem.centroid(payload);
+        return new GeometryInput(extent, geometry, centroid);
+    }
+
+    private String extractEgrid(Map<String, Object> args) {
+        if (args == null) {
+            return null;
+        }
+        Object direct = args.getOrDefault("egrid", args.get("id"));
+        if (direct instanceof String s && !s.isBlank()) {
+            return s;
+        }
+        if (args.get("selection") instanceof Map<?, ?> selectionMap) {
+            Object candidate = selectionMap.get("egrid");
+            if (candidate instanceof String s && !s.isBlank()) {
+                return s;
+            }
+            candidate = selectionMap.get("id");
+            if (candidate instanceof String s && !s.isBlank()) {
+                return s;
+            }
+        }
+        return null;
+    }
+
+    private String formatExtent(List<Double> extent) {
+        if (extent == null || extent.size() < 4) {
+            return "";
+        }
+        return "%s,%s,%s,%s".formatted(DECIMAL_FORMAT.format(extent.get(0)), DECIMAL_FORMAT.format(extent.get(1)),
+                DECIMAL_FORMAT.format(extent.get(2)), DECIMAL_FORMAT.format(extent.get(3)));
+    }
+
+    private List<Double> deriveCenter(List<Double> extent) {
+        if (extent == null || extent.size() < 4) {
+            return List.of();
+        }
+        double centerX = (extent.get(0) + extent.get(2)) / 2.0;
+        double centerY = (extent.get(1) + extent.get(3)) / 2.0;
+        return List.of(centerX, centerY);
+    }
+
+    record PrintRequest(List<Double> extent, int scaleDenominator, int gridInterval) {
+    }
+
+    record GeometryInput(List<Double> extent, Map<String, Object> geometry, List<Double> centroid) {
     }
 
     private Double asDouble(Object value, Double fallback) {

@@ -46,3 +46,6 @@ curl --header "Content-Type: application/json" \
 - Erstelle mir einen Öreb-Auszug an der Adresse Langendorfstrasse 19b in Solothurn.
 (adresse -> coord -> egrid -> auszug)
 
+### uc 8
+- Mache mir einen Grundbuchplan des Grundstücks 123 in Messen.
+  (grundstücksnummer + gemeinde -> egrid/geometry -> grundbuchplan PDF)

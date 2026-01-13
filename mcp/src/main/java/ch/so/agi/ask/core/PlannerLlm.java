@@ -121,6 +121,7 @@ public class PlannerLlm {
                   - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
                   - "%s"   => Hole einen ÖREB-Auszug für ein Grundstück.
                   - "%s"   => Prüfe die Machbarkeit einer Erdwärmesonde an einer Koordinate.
+                  - "%s"   => Erzeuge einen Grundbuchplan (PDF) für ein Grundstück (EGRID).
                 - Wenn der User mehrere Aktionen verlangt, erzeugst du mehrere Schritte (steps) und ordnest sie
                   in der gewünschten Ausführungsreihenfolge an.
                 - Du planst MINIMALE Aufrufe gemäss den unter "VERFÜGBARE CAPABILITIES" gelisteten "Capabilities"
@@ -140,7 +141,7 @@ public class PlannerLlm {
                   "requestId": "string",            // z.B. UUID oder kurzer String
                   "steps": [
                     {
-                      "intent": "%s | %s | %s | %s | %s | ...",
+                      "intent": "%s | %s | %s | %s | %s | %s | ...",
                       "toolCalls": [
                         {
                           "capabilityId": "string", // z.B. "%s" oder "%s"
@@ -175,6 +176,10 @@ public class PlannerLlm {
                   (oereb_extract) mit mehreren (zwei) tool calls:
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "x": "2607717", "y": "1228737" } },
                     { "capabilityId": "%s", "args": { "egrid": "CH1234567891012" } }] } ]
+                - Wenn der User "mache mir einen Grundbuchplan für Grundstück 123 in Messen" schreibt, erzeuge einen Schritt
+                  (cadastral_plan) mit zwei ToolCalls:
+                  - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "number": "123", "municipality": "Messen" } },
+                    { "capabilityId": "%s", "args": { "geometry": { /* GeoJSON aus Auswahl */ } } } ] } ]
 
                 ANTWORT:
                 - Gib nur das JSON-Objekt entsprechend dem Schema zurück.
@@ -186,11 +191,13 @@ public class PlannerLlm {
                 IntentType.SEARCH_PLACE.id(),
                 IntentType.OEREB_EXTRACT.id(),
                 IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
+                IntentType.CADASTRAL_PLAN.id(),
                 IntentType.GOTO_ADDRESS.id(),
                 IntentType.LOAD_LAYER.id(),
                 IntentType.SEARCH_PLACE.id(),
                 IntentType.OEREB_EXTRACT.id(),
                 IntentType.GEOTHERMAL_PROBE_ASSESSMENT.id(),
+                IntentType.CADASTRAL_PLAN.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
                 McpToolCapability.LAYERS_SEARCH.id(),
                 McpToolCapability.GEOLOCATION_GEOCODE.id(),
@@ -201,7 +208,10 @@ public class PlannerLlm {
                 McpToolCapability.LAYERS_SEARCH.id(),
                 IntentType.OEREB_EXTRACT.id(),
                 McpToolCapability.OEREB_EGRID_BY_XY.id(),
-                McpToolCapability.OEREB_EXTRACT_BY_ID.id());
+                McpToolCapability.OEREB_EXTRACT_BY_ID.id(),
+                IntentType.CADASTRAL_PLAN.id(),
+                McpToolCapability.FEATURE_SEARCH_EGRID_BY_NUMBER_AND_MUNICIPALITY.id(),
+                McpToolCapability.PROCESSING_CADASTRAL_PLAN_BY_GEOMETRY.id());
     }
 
     private PlannerOutput maybeMockOerebPlan(String userMessage) {
