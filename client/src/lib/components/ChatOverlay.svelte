@@ -167,6 +167,21 @@
     return template;
   }
 
+  function renderCadastralPlanMessage(message: string | undefined) {
+    if (!message) {
+      return null;
+    }
+    const urls = message.match(/https?:\/\/\S+/g) ?? [];
+    const pdfUrl = urls[0];
+    if (!pdfUrl) {
+      return null;
+    }
+    const template = `
+      <div>Auszug aus dem Plan für das Grundbuch wurde erstellt. Laden sie ihn <a href="${pdfUrl}" target="_blank" rel="noreferrer">hier</a> herunter.</div>
+    `;
+    return template;
+  }
+
   function handleChatResponse(response: ChatResponse) {
     let hasChoices = false;
     const choiceHighlightRemovals = buildHighlightRemovalActions(pendingChoices);
@@ -177,6 +192,13 @@
       if (step.message) {
         if (step.intent === 'oereb_extract') {
           const html = renderOerebExtractMessage(step.message);
+          if (html) {
+            appendMessage('bot', html, true);
+          } else {
+            appendMessage('bot', step.message);
+          }
+        } else if (step.intent === 'cadastral_plan') {
+          const html = renderCadastralPlanMessage(step.message);
           if (html) {
             appendMessage('bot', html, true);
           } else {
