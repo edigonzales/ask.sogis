@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, fetch }) => {
   const { id } = params;
-  const backendResponse = await fetch(`http://localhost/api/prints/${id}`);
+  const backendResponse = await fetch(`http://localhost:8080/api/prints/${id}`);
 
   return new Response(backendResponse.body, {
     status: backendResponse.status,

@@ -246,7 +246,7 @@ public class ProcessingTools {
                     : Map.of("type", "setView",
                             "payload", Map.of("center", center, "zoom", 17, "crs", landregPrintProperties.getSrs()));
 
-            String message = "Grundbuchplan erstellt. " + stored.url();
+            String message = "Grundbuchplan erstellt. http://localhost:8080" + stored.url();
             return new ProcessingResult(Status.SUCCESS,
                     McpResponseItem.toMapList(
                             List.of(new McpResponseItem("cadastral-plan", payload, List.of(), clientAction))),

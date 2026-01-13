@@ -28,7 +28,7 @@ public class PrintDownloadController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Resource> download(@PathVariable String id) {
+    public ResponseEntity<Resource> download(@PathVariable(name = "id") String id) {
         PrintFileStorage.ResourceWithMeta meta = storage.retrieve(id);
         if (meta == null) {
             return ResponseEntity.notFound().build();
