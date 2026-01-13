@@ -10,6 +10,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.time.Clock;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.springframework.web.client.RestClient;
 
 import ch.so.agi.ask.config.LandregPrintProperties;
 import ch.so.agi.ask.mcp.ToolResult.Status;
+import ch.so.agi.ask.mcp.PrintFileStorage;
 
 class ProcessingToolsCadastralPlanTests {
 
@@ -38,7 +40,8 @@ class ProcessingToolsCadastralPlanTests {
 
     @Test
     void buildPrintRequestExpandsExtentAndChoosesScale() {
-        ProcessingTools tools = new ProcessingTools(RestClient.builder(), properties);
+        PrintFileStorage storage = new PrintFileStorage(properties, Clock.systemUTC());
+        ProcessingTools tools = new ProcessingTools(RestClient.builder(), properties, storage);
 
         ProcessingTools.PrintRequest request = tools.buildPrintRequest(List.of(2600d, 1200d, 2610d, 1205d));
 
@@ -52,7 +55,8 @@ class ProcessingToolsCadastralPlanTests {
     void createsPdfItemFromPrintService() throws Exception {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).ignoreExpectOrder(true).build();
-        ProcessingTools tools = new ProcessingTools(builder, properties);
+        PrintFileStorage storage = new PrintFileStorage(properties, Clock.systemUTC());
+        ProcessingTools tools = new ProcessingTools(builder, properties, storage);
 
         server.expect(requestTo(properties.getService()))
                 .andExpect(method(HttpMethod.POST))
@@ -72,7 +76,7 @@ class ProcessingToolsCadastralPlanTests {
         assertThat(result.status()).isEqualTo(Status.SUCCESS);
         Map<String, Object> payload = McpResponseItem.payload(result.items().getFirst());
 
-        assertThat(payload.get("pdfUrl")).asString().startsWith("data:application/pdf");
+        assertThat(payload.get("pdfUrl")).asString().contains("/api/prints/");
         assertThat(payload.get("extent")).isInstanceOf(List.class);
         assertThat(payload.get("geometry")).isInstanceOf(Map.class);
         assertThat(payload.get("scaleDenominator")).isEqualTo(100);

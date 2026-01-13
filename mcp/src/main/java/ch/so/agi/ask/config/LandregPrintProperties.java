@@ -24,6 +24,9 @@ public class LandregPrintProperties {
     private double layoutHeight = 0.244;
     private int dpi = 200;
     private int gridIntervalTargetDivisor = 3;
+    private long storageTtlSeconds = 600;
+    private String storageDirectory = "";
+    private String downloadBasePath = "/api/prints";
 
     private List<Integer> allowedScales = new ArrayList<>(Arrays.asList(100, 150, 200, 250, 500, 750, 1000, 2000, 2500,
             3000, 4000, 5000, 7500, 10000, 20000, 25000, 50000, 100000, 200000, 250000, 500000, 1000000));
@@ -86,6 +89,30 @@ public class LandregPrintProperties {
 
     public void setGridIntervalTargetDivisor(int gridIntervalTargetDivisor) {
         this.gridIntervalTargetDivisor = gridIntervalTargetDivisor;
+    }
+
+    public long getStorageTtlSeconds() {
+        return storageTtlSeconds;
+    }
+
+    public void setStorageTtlSeconds(long storageTtlSeconds) {
+        this.storageTtlSeconds = storageTtlSeconds;
+    }
+
+    public String getStorageDirectory() {
+        return storageDirectory;
+    }
+
+    public void setStorageDirectory(String storageDirectory) {
+        this.storageDirectory = storageDirectory;
+    }
+
+    public String getDownloadBasePath() {
+        return downloadBasePath;
+    }
+
+    public void setDownloadBasePath(String downloadBasePath) {
+        this.downloadBasePath = downloadBasePath;
     }
 
     public List<Integer> getAllowedScales() {

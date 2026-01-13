@@ -97,8 +97,8 @@ sequenceDiagram
 - **processing.getGeothermalBoreInfoByXY**: Führt eine WMS-GetFeatureInfo-Anfrage auf `ch.so.afu.ewsabfrage.abfrage` aus, um an einer LV95-Koordinate die zulässige Bohrtiefe für Erdwärmesonden und den PDF-Bericht-Link zurückzugeben. Antwort als `ProcessingResult` (Status/Items/Message) strukturiert.
 - **featureSearch.getParcelByEgrid**: Holt Geometrie und zentrale Attribute (Nummer, Grundbuch, Gemeinde, BFS-Nr., NBIdent, Flächenmass, Grundstücksart) direkt über den Feature-Service per EGRID-Filter.
 - **processing.getCadastralPlanByGeometry**: Berechnet aus einer GeoJSON-Geometrie die Kartenausdehnung und ruft den Landregister-Print-Service
-  (`landreg.print.service`) als POST auf. Liefert ein Item vom Typ `cadastral-plan` mit Data-URL-PDF (`pdfUrl`), Extent/Geometrie und optionalem
-  `setView`-ClientAction. Parameter (Template, Layout, Skalensprünge, Grid-Intervalle, DPI, SRS) sind via `landreg.print.*` konfigurierbar.
+  (`landreg.print.service`) als POST auf. Liefert ein Item vom Typ `cadastral-plan` mit einem temporären Download-Link (`pdfUrl`), Extent/Geometrie und optionalem
+  `setView`-ClientAction. Parameter (Template, Layout, Skalensprünge, Grid-Intervalle, DPI, SRS, Download-TTL/Pfad) sind via `landreg.print.*` konfigurierbar.
 
 ### MCP-Response-Schema
 - Alle Tools liefern Items im Format `{ type, payload, options?, clientAction? }`.

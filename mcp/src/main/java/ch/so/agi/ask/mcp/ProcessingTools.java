@@ -36,6 +36,7 @@ import org.xml.sax.InputSource;
 import ch.so.agi.ask.mcp.ToolResult.Status;
 import ch.so.agi.ask.mcp.McpToolArgSchema;
 import ch.so.agi.ask.config.LandregPrintProperties;
+import ch.so.agi.ask.mcp.PrintFileStorage;
 
 @Component
 public class ProcessingTools {
@@ -52,11 +53,14 @@ public class ProcessingTools {
     private final RestClient geothermalClient;
     private final RestClient landregPrintClient;
     private final LandregPrintProperties landregPrintProperties;
+    private final PrintFileStorage printFileStorage;
 
-    public ProcessingTools(RestClient.Builder restClientBuilder, LandregPrintProperties landregPrintProperties) {
+    public ProcessingTools(RestClient.Builder restClientBuilder, LandregPrintProperties landregPrintProperties,
+            PrintFileStorage printFileStorage) {
         this.geothermalClient = restClientBuilder.baseUrl(BASE_URL).build();
         this.landregPrintClient = restClientBuilder.baseUrl(landregPrintProperties.getService()).build();
         this.landregPrintProperties = landregPrintProperties;
+        this.printFileStorage = printFileStorage;
     }
 
     public record ProcessingResult(Status status, List<Map<String, Object>> items, String message)
@@ -211,8 +215,7 @@ public class ProcessingTools {
                         "Landregister-Print-Service antwortete nicht erfolgreich.");
             }
 
-            String pdfDataUrl = "data:application/pdf;base64,%s"
-                    .formatted(java.util.Base64.getEncoder().encodeToString(response.getBody()));
+            PrintFileStorage.StoredPdf stored = printFileStorage.storePdf(response.getBody());
             List<Double> center = geometry.centroid().isEmpty() ? deriveCenter(printRequest.extent()) : geometry.centroid();
 
             Map<String, Object> payload = new LinkedHashMap<>();
@@ -228,8 +231,9 @@ public class ProcessingTools {
             payload.put("template", landregPrintProperties.getTemplate());
             payload.put("dpi", landregPrintProperties.getDpi());
             payload.put("srs", landregPrintProperties.getSrs());
-            payload.put("pdfUrl", pdfDataUrl);
-            payload.put("pdfSize", response.getBody().length);
+            payload.put("pdfUrl", stored.url());
+            payload.put("pdfSize", stored.size());
+            payload.put("expiresAt", stored.expiresAt().toString());
             if (!geometry.geometry().isEmpty()) {
                 payload.put("geometry", geometry.geometry());
             }
