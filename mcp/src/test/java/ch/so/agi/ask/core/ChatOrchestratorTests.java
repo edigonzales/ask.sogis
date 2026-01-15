@@ -145,6 +145,49 @@ class ChatOrchestratorTests {
     }
 
     @Test
+    void resolvesFinalChoiceSelectionsFromPayloadIds() {
+        PlannerLlm planner = mock(PlannerLlm.class);
+        McpClient mcpClient = mock(McpClient.class);
+        ActionPlanner actionPlanner = new ActionPlanner();
+        ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
+        PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
+                pendingChoiceStore);
+
+        var step = new PlannerOutput.Step(IntentType.LOAD_LAYER,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.LAYERS_SEARCH, Map.of("query", "wald"))),
+                new PlannerOutput.Result("pending", List.of(), ""));
+
+        when(planner.plan(anyString(), anyString())).thenReturn(new PlannerOutput("req-layer", List.of(step)));
+
+        Map<String, Object> layerA = new McpResponseItem("layer",
+                Map.of("id", "layer-a", "label", "Layer A", "layerId", "layer-a", "type", "wms",
+                        "source", Map.of("url", "https://geo.so.ch/api/wms", "LAYERS", "layer-a")),
+                List.of(), Map.of()).toMap();
+        Map<String, Object> layerB = new McpResponseItem("layer",
+                Map.of("id", "layer-b", "label", "Layer B", "layerId", "layer-b", "type", "wms",
+                        "source", Map.of("url", "https://geo.so.ch/api/wms", "LAYERS", "layer-b")),
+                List.of(), Map.of()).toMap();
+
+        when(mcpClient.execute(eq(McpToolCapability.LAYERS_SEARCH), anyMap()))
+                .thenReturn(new PlannerOutput.Result("ok", List.of(layerA, layerB), "Mehrere Layer gefunden."));
+
+        ChatResponse response = orchestrator.handleUserPrompt(new ChatRequest("sess-layer", "Layer wald", null));
+
+        assertThat(response.overallStatus()).isEqualTo("needs_user_choice");
+        assertThat(response.steps()).hasSize(1);
+        assertThat(response.steps().get(0).choices()).hasSize(2);
+
+        ChatResponse selectionResponse = orchestrator
+                .handleUserPrompt(new ChatRequest("sess-layer", null, "layer-a"));
+
+        assertThat(selectionResponse.overallStatus()).isEqualTo("ok");
+        assertThat(selectionResponse.steps()).hasSize(1);
+        assertThat(selectionResponse.steps().get(0).status()).isEqualTo("ok");
+        assertThat(selectionResponse.steps().get(0).mapActions()).hasSize(1);
+    }
+
+    @Test
     void plannerPromptIncludesHistoryForFollowUps() {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);

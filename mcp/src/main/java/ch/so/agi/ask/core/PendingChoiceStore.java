@@ -9,6 +9,8 @@ import ch.so.agi.ask.model.PlannerOutput;
 public interface PendingChoiceStore {
     Optional<PendingChoiceContext> consume(String sessionId);
 
+    Optional<PendingChoiceContext> peek(String sessionId);
+
     void save(String sessionId, PendingChoiceContext context);
 
     void clear(String sessionId);

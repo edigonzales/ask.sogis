@@ -5,6 +5,7 @@
   import View from 'ol/View';
   import type { AnimationOptions } from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
+  import ImageLayer from 'ol/layer/Image';
   import WMTSSource from 'ol/source/WMTS';
   import WMTSTileGrid from 'ol/tilegrid/WMTS';
   import VectorLayer from 'ol/layer/Vector';
@@ -36,7 +37,7 @@
     RemoveLayerPayload,
     Coordinates
   } from '$lib/api/chat-response';
-  import TileWMS from 'ol/source/TileWMS';
+  import ImageWMS from 'ol/source/ImageWMS';
 
   const BACKGROUND_OPTIONS = [
     { id: 'none', text: 'Kein Hintergrund', layerName: null },
@@ -63,7 +64,10 @@
   let map: OlMap | null = null;
   let markerSource: VectorSource | null = null;
   let markerLayer: VectorLayer<VectorSource> | null = null;
-  const dynamicLayerMap = new Map<string, TileLayer<WMTSSource | TileWMS> | VectorLayer<VectorSource>>();
+  const dynamicLayerMap = new Map<
+    string,
+    TileLayer<WMTSSource> | ImageLayer<ImageWMS> | VectorLayer<VectorSource>
+  >();
   let selectedBackgroundId = 'sw';
   const backgroundLayerMap = new globalThis.Map<string, TileLayer<WMTSSource> | null>();
   let mapActionUnsubscribe: (() => void) | null = null;
@@ -298,12 +302,12 @@
       }
       const params = { ...(payload.source ?? {}) } as Record<string, unknown>;
       delete params.url;
-      const wmsLayer = new TileLayer({
-        source: new TileWMS({
+      const wmsLayer = new ImageLayer({
+        source: new ImageWMS({
           url,
           params,
           serverType: 'qgis',
-          transition: 0
+          ratio: 1
         }),
         visible: payload.visible ?? true
       });
@@ -377,16 +381,21 @@
       .getArray()
       .slice()
       .forEach((layer) => {
-        if (!(layer instanceof TileLayer)) {
+        if (layer instanceof TileLayer) {
+          if (backgroundLayers.has(layer)) {
+            return;
+          }
+          const source = layer.getSource();
+          if (source instanceof WMTSSource) {
+            map?.removeLayer(layer);
+          }
           return;
         }
-        if (backgroundLayers.has(layer)) {
-          return;
-        }
-
-        const source = layer.getSource();
-        if (source instanceof WMTSSource || source instanceof TileWMS) {
-          map?.removeLayer(layer);
+        if (layer instanceof ImageLayer) {
+          const source = layer.getSource();
+          if (source instanceof ImageWMS) {
+            map?.removeLayer(layer);
+          }
         }
       });
   }

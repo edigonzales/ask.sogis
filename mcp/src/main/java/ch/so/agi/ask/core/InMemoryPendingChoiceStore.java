@@ -20,6 +20,14 @@ public class InMemoryPendingChoiceStore implements PendingChoiceStore {
     }
 
     @Override
+    public Optional<PendingChoiceContext> peek(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(pending.get(sessionId));
+    }
+
+    @Override
     public void save(String sessionId, PendingChoiceContext context) {
         if (sessionId == null || sessionId.isBlank() || context == null) {
             return;

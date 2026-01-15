@@ -3,7 +3,7 @@
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
-  import ListBulleted from 'carbon-icons-svelte/lib/ListBulleted.svelte';
+  import ListChecked from 'carbon-icons-svelte/lib/ListChecked.svelte';
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID, TOC_OVERLAY_ID } from '$lib/constants';
@@ -33,6 +33,7 @@
   let messages: ChatMessage[] = [createWelcomeMessage()];
   let pendingChoices: Choice[] = [];
   let pendingChoiceMessage = '';
+  const blockedChoiceFragments = ['Quelle Bund', 'Quelle geodienste.ch', 'Quelle Emch+Berger'];
 
   function toggleChatOverlay() {
     isChatOpen = !isChatOpen;
@@ -69,6 +70,11 @@
         payload: { id }
       }
     ]);
+  }
+
+  function isBlockedChoice(choice: Choice) {
+    const label = choice?.label ?? '';
+    return blockedChoiceFragments.some((fragment) => label.includes(fragment));
   }
 
   function appendMessage(role: Role, text: string, isHtml = false) {
@@ -357,23 +363,39 @@
           {#each pendingChoices as choice (choice.id)}
             <Button
               kind="tertiary"
-              disabled={isSending}
-              on:click={() => sendChoice(choice)}
+              disabled={isSending || isBlockedChoice(choice)}
+              on:click={() => {
+                if (!isBlockedChoice(choice)) {
+                  sendChoice(choice);
+                }
+              }}
               on:mouseenter={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:mouseleave={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const removals = buildHighlightRemovalActions([choice]);
                 if (removals.length) {
                   mapActionBus.dispatch(removals);
                 }
               }}
               on:focus={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:blur={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const removals = buildHighlightRemovalActions([choice]);
                 if (removals.length) {
                   mapActionBus.dispatch(removals);
@@ -477,7 +499,7 @@
       aria-pressed={isTocOpen}
       on:click={toggleTocOverlay}
     >
-      <ListBulleted size={24} aria-hidden="true" />
+      <ListChecked size={24} aria-hidden="true" />
       <span class="sr-only">Open table of contents</span>
     </button>
     <button class="icon help-icon" type="button" title="Help">
