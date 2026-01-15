@@ -40,7 +40,9 @@ curl --header "Content-Type: application/json" \
 -> Wie umgehen? Entweder Strasse suchen und anzeigen oder wie ux/ui wenn mehrere Treffer?
 
 ### uc 6
-- Erstelle mir einen Öreb-Auszung vom Grundstück 168 in Messen
+- Erstelle mir einen Öreb-Auszung vom Grundstück 168 in Messen.
+- Lade den ÖREB-Auszug an der Koordinate 2600513, 1215519.
+(-> Auswahl)
 
 ### uc 7
 - Erstelle mir einen Öreb-Auszug an der Adresse Langendorfstrasse 19b in Solothurn.
