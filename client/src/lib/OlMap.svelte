@@ -24,6 +24,7 @@
   import BackgroundSelector from './BackgroundSelector.svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import { mapActionBus } from '$lib/stores/mapActions';
+  import { layerStore } from '$lib/stores/layers';
   import { MapActionType } from '$lib/api/chat-response';
   import type {
     MapAction,
@@ -31,6 +32,7 @@
     AddMarkerPayload,
     RemoveMarkerPayload,
     AddLayerPayload,
+    SetLayerVisibilityPayload,
     RemoveLayerPayload,
     Coordinates
   } from '$lib/api/chat-response';
@@ -252,6 +254,12 @@
       vectorLayer.setZIndex(900);
       map.addLayer(vectorLayer);
       dynamicLayerMap.set(payload.id, vectorLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -274,6 +282,12 @@
       });
       map.addLayer(wmtsLayer);
       dynamicLayerMap.set(payload.id, wmtsLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -282,17 +296,25 @@
       if (!url) {
         return Promise.resolve();
       }
+      const params = { ...(payload.source ?? {}) } as Record<string, unknown>;
+      delete params.url;
       const wmsLayer = new TileLayer({
         source: new TileWMS({
           url,
-          params: payload.source ?? {},
-          serverType: 'geoserver',
+          params,
+          serverType: 'qgis',
           transition: 0
         }),
         visible: payload.visible ?? true
       });
       map.addLayer(wmsLayer);
       dynamicLayerMap.set(payload.id, wmsLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -308,6 +330,19 @@
       map.removeLayer(layer);
       dynamicLayerMap.delete(payload.id);
     }
+    layerStore.removeLayer(payload.id);
+    return Promise.resolve();
+  }
+
+  function handleSetLayerVisibility(payload: SetLayerVisibilityPayload): Promise<void> {
+    if (!map || !payload?.id) {
+      return Promise.resolve();
+    }
+    const layer = dynamicLayerMap.get(payload.id);
+    if (layer) {
+      layer.setVisible(Boolean(payload.visible));
+    }
+    layerStore.setVisibility(payload.id, Boolean(payload.visible));
     return Promise.resolve();
   }
 
@@ -359,6 +394,7 @@
   function handleClearMap(): Promise<void> {
     clearVectorLayers();
     removeNonBackgroundTileLayers();
+    layerStore.clear();
     return Promise.resolve();
   }
 
@@ -375,6 +411,8 @@
         return handleAddLayer(action.payload as AddLayerPayload);
       case MapActionType.RemoveLayer:
         return handleRemoveLayer(action.payload as RemoveLayerPayload);
+      case MapActionType.SetLayerVisibility:
+        return handleSetLayerVisibility(action.payload as SetLayerVisibilityPayload);
       case MapActionType.ClearMap:
         return handleClearMap();
       default:

@@ -73,11 +73,19 @@ public class ActionPlanner {
                     new MapAction("addMarker", Map.of("id", "addr-" + id, "coord", coord, "style", "pin-default", "label", label)));
         }
         case LOAD_LAYER -> {
-            var layerId = (String) payload.get("layerId");
-            var type = (String) payload.get("type"); // wmts|wms|vector|geojson
-            var source = (Map<String, Object>) payload.get("source");
-            yield List.of(
-                    new MapAction("addLayer", Map.of("id", layerId, "type", type, "source", source, "visible", true)));
+            List<MapAction> actions = new ArrayList<>();
+            Object sublayers = payload.get("sublayers");
+            if (sublayers instanceof List<?> sublayerList && !sublayerList.isEmpty()) {
+                for (Object entry : sublayerList) {
+                    if (entry instanceof Map<?, ?> sublayerMap) {
+                        actions.add(buildAddLayerAction((Map<String, Object>) sublayerMap));
+                    }
+                }
+                yield actions;
+            }
+
+            actions.add(buildAddLayerAction(payload));
+            yield actions;
         }
         case OEREB_EXTRACT -> {
             var egrid = (String) Optional.ofNullable(payload.get("egrid")).orElse(payload.get("id"));
@@ -136,5 +144,21 @@ public class ActionPlanner {
         Set<MapAction> actions = new LinkedHashSet<>(McpResponseItem.clientActions(item));
         actions.addAll(template(intent, payload));
         return List.copyOf(actions);
+    }
+
+    private MapAction buildAddLayerAction(Map<String, Object> payload) {
+        var layerId = (String) payload.getOrDefault("layerId", payload.get("id"));
+        var type = (String) payload.get("type");
+        var source = (Map<String, Object>) payload.get("source");
+        var label = payload.get("label");
+        Map<String, Object> actionPayload = new LinkedHashMap<>();
+        actionPayload.put("id", layerId);
+        actionPayload.put("type", type);
+        actionPayload.put("source", source);
+        actionPayload.put("visible", true);
+        if (label != null) {
+            actionPayload.put("label", label);
+        }
+        return new MapAction("addLayer", actionPayload);
     }
 }

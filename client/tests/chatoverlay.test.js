@@ -13,7 +13,7 @@ test.describe('ChatOverlay Component', () => {
 
     // Verify the overlay has the expected dimensions and positioning
     const chatOverlayBox = await chatOverlay.boundingBox();
-    expect(chatOverlayBox.width).toBeCloseTo(450, -1); // Approximately 450px wide
+    expect(chatOverlayBox.width).toBeCloseTo(550, -1); // Approximately 550px wide
     expect(chatOverlayBox.height).toBeGreaterThan(500); // Should be tall enough
 
     // Check if the overlay is positioned with offset for the sidebar
@@ -106,14 +106,35 @@ test.describe('ChatOverlay Component', () => {
     const sidebar = page.locator('.sidebar');
     await expect(sidebar).toBeVisible();
 
-    // Verify the chat and help icons are visible
+    // Verify the chat, table of contents, and help icons are visible
     const chatIcon = page.locator('.chat-icon');
+    const tocIcon = page.locator('.toc-icon');
     const helpIcon = page.locator('.help-icon');
     await expect(chatIcon).toBeVisible();
+    await expect(tocIcon).toBeVisible();
     await expect(helpIcon).toBeVisible();
 
     // Verify the sidebar has the correct width (64px)
     const sidebarBox = await sidebar.boundingBox();
     expect(sidebarBox.width).toBeCloseTo(64, 2);
+  });
+
+  test('opens table of contents overlay and hides chat overlay', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForTimeout(2000);
+
+    const chatOverlay = page.locator('.chat-overlay');
+    await expect(chatOverlay).toBeVisible();
+
+    const tocIcon = page.locator('.toc-icon');
+    await expect(tocIcon).toBeVisible();
+    await tocIcon.click();
+
+    const tocOverlay = page.locator('.toc-overlay');
+    await expect(tocOverlay).toBeVisible();
+    await expect(chatOverlay).not.toBeVisible();
+
+    const emptyMessage = tocOverlay.locator('.toc-empty');
+    await expect(emptyMessage).toContainText('Noch keine Layer geladen');
   });
 });
