@@ -12,7 +12,9 @@ public enum IntentType {
     GOTO_ADDRESS("goto_address"),
     LOAD_LAYER("load_layer"),
     SEARCH_PLACE("search_place"),
-    OEREB_EXTRACT("oereb_extract");
+    OEREB_EXTRACT("oereb_extract"),
+    GEOTHERMAL_PROBE_ASSESSMENT("geothermal_probe_assessment"),
+    CADASTRAL_PLAN("cadastral_plan");
 
     private final String id;
 

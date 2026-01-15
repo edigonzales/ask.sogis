@@ -3,6 +3,7 @@ package ch.so.agi.ask.core;
 import org.springframework.stereotype.Service;
 
 import ch.so.agi.ask.model.*;
+import ch.so.agi.ask.mcp.McpResponseItem;
 
 import java.util.*;
 
@@ -29,14 +30,24 @@ public class ActionPlanner {
         List<Map<String, Object>> items = Optional.ofNullable(result.items()).orElse(List.of());
 
         if ("ok".equals(result.status()) && items.size() == 1) {
-            return ActionPlan.ok(template(intent, items.get(0)), "Erledigt.");
+            Map<String, Object> item = items.get(0);
+            return ActionPlan.ok(mapActions(intent, item), "Erledigt.");
         }
         if ("needs_user_choice".equals(result.status()) || ("ok".equals(result.status()) && items.size() > 1)) {
             // Choice-Erzeugung: mehrere Kandidaten ⇒ interaktive Auswahl mit Intent-basiertem Label
             List<Choice> choices = items.stream()
-                    .map(i -> new Choice((String) i.getOrDefault("id", UUID.randomUUID().toString()),
-                            (String) i.getOrDefault("label", (intent != null ? intent.id() : "intent") + " option"),
-                            (Double) i.getOrDefault("confidence", null), template(intent, i), i))
+                    .map(i -> {
+                        Map<String, Object> payload = McpResponseItem.payload(i);
+                        String id = Optional.ofNullable(McpResponseItem.id(i)).orElse(UUID.randomUUID().toString());
+                        String label = Optional.ofNullable(McpResponseItem.label(i))
+                                .orElse((intent != null ? intent.id() : "intent") + " option");
+                        Double confidence = null;
+                        Object conf = payload.get("confidence");
+                        if (conf instanceof Number n) {
+                            confidence = n.doubleValue();
+                        }
+                        return new Choice(id, label, confidence, mapActions(intent, i), payload);
+                    })
                     .toList();
             String message = Optional.ofNullable(result.message()).orElse("Bitte wähle eine Option.");
             return ActionPlan.needsUserChoice(choices, message);
@@ -48,40 +59,82 @@ public class ActionPlanner {
     }
 
     // Templates pro Intent: erzeugt MapActions wie im README dokumentiert (setView, addLayer, addMarker …)
-    private List<MapAction> template(IntentType intent, Map<String, Object> item) {
+    private List<MapAction> template(IntentType intent, Map<String, Object> payload) {
         if (intent == null) {
             return List.of();
         }
         return switch (intent) {
         case GOTO_ADDRESS -> {
-            var coord = (List<?>) item.get("coord"); // [x,y]
-            var crs = (String) item.getOrDefault("crs", "EPSG:2056");
-            var id = (String) item.getOrDefault("id", "addr");
-            var label = (String) item.getOrDefault("label", "");
+            var coord = (List<?>) payload.get("coord"); // [x,y]
+            var crs = (String) payload.getOrDefault("crs", "EPSG:2056");
+            var id = (String) payload.getOrDefault("id", "addr");
+            var label = (String) payload.getOrDefault("label", "");
             yield List.of(new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", crs)),
                     new MapAction("addMarker", Map.of("id", "addr-" + id, "coord", coord, "style", "pin-default", "label", label)));
         }
         case LOAD_LAYER -> {
-            var layerId = (String) item.get("layerId");
-            var type = (String) item.get("type"); // wmts|wms|vector|geojson
-            var source = (Map<String, Object>) item.get("source");
+            var layerId = (String) payload.get("layerId");
+            var type = (String) payload.get("type"); // wmts|wms|vector|geojson
+            var source = (Map<String, Object>) payload.get("source");
             yield List.of(
                     new MapAction("addLayer", Map.of("id", layerId, "type", type, "source", source, "visible", true)));
         }
         case OEREB_EXTRACT -> {
-            var egrid = (String) Optional.ofNullable(item.get("egrid")).orElse(item.get("id"));
-            var url = (String) item.getOrDefault("extractUrl", "");
+            var egrid = (String) Optional.ofNullable(payload.get("egrid")).orElse(payload.get("id"));
             List<MapAction> actions = new ArrayList<>();
-            var coord = (List<?>) item.get("coord");
+            var coord = (List<?>) payload.get("coord");
             if (coord != null) {
-                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 18, "crs", "EPSG:2056")));
+                actions.add(new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", "EPSG:2056")));
                 actions.add(new MapAction("addMarker",
-                        Map.of("id", "oereb-" + egrid, "coord", coord, "style", "pin-default", "label", item.get("label"))));
+                        Map.of("id", "oereb-" + egrid, "coord", coord, "style", "pin-default", "label", payload.get("label"))));
             }
-            actions.add(new MapAction("showOerebExtract", Map.of("egrid", egrid, "url", url)));
+            var geometry = payload.get("geometry");
+            if (geometry != null) {
+                actions.add(new MapAction("addLayer",
+                        Map.of("id", "oereb-highlight-" + egrid, "type", "geojson",
+                                "source", Map.of("data", geometry, "style", "highlight"))));
+            }
+            yield actions;
+        }
+        case GEOTHERMAL_PROBE_ASSESSMENT -> {
+            var coord = (List<?>) payload.get("coord");
+            var label = (String) payload.getOrDefault("label", "Geothermal probe assessment");
+            if (coord == null) {
+                yield List.of();
+            }
+            yield List.of(
+                    new MapAction("setView", Map.of("center", coord, "zoom", 17, "crs", "EPSG:2056")),
+                    new MapAction("addMarker",
+                            Map.of("id", "geothermal-" + payload.getOrDefault("id", "probe"), "coord", coord,
+                                    "style", "pin-default", "label", label)));
+        }
+        case CADASTRAL_PLAN -> {
+            List<MapAction> actions = new ArrayList<>();
+            List<Double> extent = McpResponseItem.extent(Map.of("payload", payload));
+            List<Double> center = extent.size() >= 4
+                    ? List.of((extent.get(0) + extent.get(2)) / 2.0, (extent.get(1) + extent.get(3)) / 2.0)
+                    : McpResponseItem.centroid(Map.of("payload", payload));
+
+            if (!center.isEmpty()) {
+                actions.add(new MapAction("setView",
+                        Map.of("center", center, "zoom", 17, "crs", payload.getOrDefault("crs", "EPSG:2056"))));
+            }
+            var geometry = payload.get("geometry");
+            if (geometry != null) {
+                actions.add(new MapAction("addLayer",
+                        Map.of("id", "cadastral-plan-" + payload.getOrDefault("id", "plan"), "type", "geojson",
+                                "source", Map.of("data", geometry, "style", "highlight"))));
+            }
             yield actions;
         }
         default -> List.of();
         };
+    }
+
+    private List<MapAction> mapActions(IntentType intent, Map<String, Object> item) {
+        Map<String, Object> payload = McpResponseItem.payload(item);
+        Set<MapAction> actions = new LinkedHashSet<>(McpResponseItem.clientActions(item));
+        actions.addAll(template(intent, payload));
+        return List.copyOf(actions);
     }
 }

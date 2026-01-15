@@ -2,10 +2,13 @@ package ch.so.agi.ask.core;
 
 import java.util.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
+import ch.so.agi.ask.mcp.McpResponseItem;
 import ch.so.agi.ask.model.ChatRequest;
 import ch.so.agi.ask.model.ChatResponse;
 import ch.so.agi.ask.model.PlannerOutput;
@@ -19,6 +22,7 @@ import ch.so.agi.ask.model.PlannerOutput;
  */
 @Service
 public class ChatOrchestrator {
+    private static final Logger log = LoggerFactory.getLogger(ChatOrchestrator.class);
 
     private final PlannerLlm plannerLlm;
     private final McpClient mcpClient;
@@ -41,7 +45,7 @@ public class ChatOrchestrator {
      * Response an den REST-Controller.
      */
     public ChatResponse handleUserPrompt(ChatRequest req) {
-        System.out.println(req);
+        log.info(req.toString());
 
         if (req.choiceId() != null && !req.choiceId().isBlank()) {
             return handleChoiceFollowUp(req);
@@ -49,10 +53,11 @@ public class ChatOrchestrator {
 
         // 1) LLM-Plan (Intent + ToolCalls) erzeugen
         PlannerOutput plan = plannerLlm.plan(req.sessionId(), req.userMessage());
-        System.out.println(plan);
+        log.info(plan.toString());
 
         // 2) ToolCalls je Step ausführen (MCP) und ActionPlans erzeugen
         List<ChatResponse.Step> steps = buildSteps(req.sessionId(), plan);
+        log.info(steps.toString());
 
         // 3) Finale ChatResponse inklusive Gesamtstatus
         return new ChatResponse(plan.requestId(), steps, aggregateStatus(steps));
@@ -70,8 +75,9 @@ public class ChatOrchestrator {
         }
 
         for (PlannerOutput.Step step : plan.steps()) {
+            log.info("Executing step: " + step.intent());
             PlannerOutput.Result aggResult = executeToolCalls(sessionId, plan.requestId(), step, 0, null);
-            System.out.println("aggResult: " + aggResult);
+            log.info("aggResult: " + aggResult);
 
             ActionPlan ap = actionPlanner.toActionPlan(step.intent(), aggResult);
             var message = Optional.ofNullable(aggResult).map(PlannerOutput.Result::message).orElse(ap.message());
@@ -125,9 +131,9 @@ public class ChatOrchestrator {
         // In echt: mergen/akkumulieren, Fehlerbehandlung, Tracing, Timeouts, …
         PlannerOutput.Result last = current;
         Map<String, Object> selection = initialSelection;
-        System.out.println("initialSelection: " + initialSelection);
+        //System.out.println("initialSelection: " + initialSelection);
         List<PlannerOutput.ToolCall> toolCalls = step.toolCalls();
-        System.out.println("toolCalls: " + toolCalls);
+        //System.out.println("toolCalls: " + toolCalls);
         for (int i = Math.max(0, startIndex); i < toolCalls.size(); i++) {
             PlannerOutput.ToolCall tc = toolCalls.get(i);
             Map<String, Object> args = new HashMap<>();
@@ -135,19 +141,37 @@ public class ChatOrchestrator {
                 args.putAll(tc.args());
             }
             if (selection != null && !selection.isEmpty()) {
-                System.out.println("selection: " + selection);
-                
-                args.putIfAbsent("selection", selection);
-                Object id = selection.get("id");
+                Map<String, Object> payload = McpResponseItem.payload(selection);
+                Map<String, Object> selectionForArgs = new HashMap<>(payload);
+                Optional.ofNullable(McpResponseItem.itemType(selection)).ifPresent(type -> selectionForArgs.put("type", type));
+
+                args.put("selection", selectionForArgs);
+                String id = Optional.ofNullable(McpResponseItem.id(selection))
+                        .orElseGet(() -> Optional.ofNullable(payload.get("id")).map(String::valueOf).orElse(null));
                 if (id != null) {
-                    args.putIfAbsent("id", id);
+                    args.put("id", id);
                 }
-                Object egrid = selection.get("egrid");
+                Object egrid = Optional.ofNullable(payload.get("egrid")).orElse(id);
                 if (egrid != null) {
-                    args.putIfAbsent("egrid", egrid);
+                    args.put("egrid", egrid);
+                }
+                Object coord = payload.get("coord");
+                if (coord != null) {
+                    args.put("coord", coord);
+                    if (coord instanceof List<?> coords && coords.size() >= 2) {
+                        Object x = coords.get(0);
+                        Object y = coords.get(1);
+                        args.putIfAbsent("x", x);
+                        args.putIfAbsent("y", y);
+                    }
+                }
+                Object crs = payload.get("crs");
+                if (crs != null) {
+                    args.putIfAbsent("crs", crs);
                 }
             }
 
+            log.info("Executing tool call with args: " + args + " .... " + tc.capabilityId());            
             last = mcpClient.execute(tc.capabilityId(), args);
             chatMemoryStore.appendMessage(sessionId,
                     new AssistantMessage("Tool %s result: %s".formatted(tc.capabilityId().id(), Json.write(last))));

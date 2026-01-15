@@ -3,6 +3,7 @@
 ## todo
 
 - x Treffer: Aufklappbar mit Antwort (raw).
+- sauberes logging / debugging
 
 
 
@@ -85,6 +86,26 @@ sequenceDiagram
 - Übersetzt Intent und Tool-Ergebnisse in eine strukturierte `ActionPlan`-Antwort.
 - Bestimmt `mapActions` (z. B. Kartenbefehle) sowie interaktive `choices`, ergänzt um Nutzerhinweise (`message`).
 - Signaliert den Gesamtstatus (success, partial, error) auf Basis der gelieferten Tool-Ergebnisse.
+
+### Verfügbare MCP-Tools
+- **geolocation.geocode**: Adresssuche über geo.so.ch, liefert Treffer mit Bounding-Box und SRID. Setzt den Status je nach Trefferanzahl auf `SUCCESS` oder `NEEDS_USER_CHOICE`.
+- **layers.search**: Mocked Layersuche, gibt zwei Layer-Optionen zurück (`NEEDS_USER_CHOICE`).
+- **oereb.egridByXY**: Holt EGRID(s) und Geometrie zu einer LV95-Koordinate; bei Mehrfachtreffern wird `NEEDS_USER_CHOICE` verwendet.
+- **oereb.extractById**: Baut ÖREB-Auszug-URLs für ein EGRID.
+- **featureSearch.getEgridByNumberAndMunicipality**: Lookup des EGRID anhand sprechender Grundstücksnummer und Gemeindename über den Feature-Service
+  `ch.so.agi.av.grundstuecke.rechtskraeftig`. Liefert bei Mehrfachtreffern Auswahl-Items (Status `NEEDS_USER_CHOICE`), ansonsten `SUCCESS`.
+- **processing.getGeothermalBoreInfoByXY**: Führt eine WMS-GetFeatureInfo-Anfrage auf `ch.so.afu.ewsabfrage.abfrage` aus, um an einer LV95-Koordinate die zulässige Bohrtiefe für Erdwärmesonden und den PDF-Bericht-Link zurückzugeben. Antwort als `ProcessingResult` (Status/Items/Message) strukturiert.
+- **featureSearch.getParcelByEgrid**: Holt Geometrie und zentrale Attribute (Nummer, Grundbuch, Gemeinde, BFS-Nr., NBIdent, Flächenmass, Grundstücksart) direkt über den Feature-Service per EGRID-Filter.
+- **processing.getCadastralPlanByGeometry**: Berechnet aus einer GeoJSON-Geometrie die Kartenausdehnung und ruft den Landregister-Print-Service
+  (`landreg.print.service`) als POST auf. Liefert ein Item vom Typ `cadastral-plan` mit einem temporären Download-Link (`pdfUrl`), Extent/Geometrie und optionalem
+  `setView`-ClientAction. Parameter (Template, Layout, Skalensprünge, Grid-Intervalle, DPI, SRS, Download-TTL/Pfad) sind via `landreg.print.*` konfigurierbar.
+
+### MCP-Response-Schema
+- Alle Tools liefern Items im Format `{ type, payload, options?, clientAction? }`.
+- **type** beschreibt die Domäne (z. B. `geolocation`, `layer`, `oereb-parcel`, `geothermal`).
+- **payload** enthält die fachlichen Felder (`id`, `label`, `coord`, `crs`, domänenspezifische Attribute).
+- **clientAction** ist optional und beschreibt Map-Aktionen, die direkt im Client anwendbar sind; der `ActionPlanner` kombiniert sie mit intent-spezifischen Templates.
+- Durch diese Normalisierung bleiben die bestehenden Client-Erwartungen (MapActions/Choices) unverändert.
 
 ## Typische Responses
 

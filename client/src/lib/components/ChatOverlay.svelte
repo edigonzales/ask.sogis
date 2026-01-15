@@ -6,12 +6,12 @@
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
-  import type { ChatResponse, Choice } from '$lib/api/chat-response';
+  import type { AddLayerPayload, ChatResponse, Choice, MapAction } from '$lib/api/chat-response';
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
 
   type Role = 'bot' | 'user';
-  type ChatMessage = { id: string; role: Role; text: string };
+  type ChatMessage = { id: string; role: Role; text: string; isHtml?: boolean };
 
   let chatMessagesContainer: HTMLDivElement;
   const createSessionId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -24,7 +24,8 @@
   const createWelcomeMessage = () => ({
     id: createMessageId(),
     role: 'bot' as const,
-    text: 'Hello! How can I help you with the map today?'
+    text: 'Hello! How can I help you with the map today?',
+    isHtml: false
   });
 
   let messages: ChatMessage[] = [createWelcomeMessage()];
@@ -39,8 +40,8 @@
     }, 300);
   }
 
-  function appendMessage(role: Role, text: string) {
-    messages = [...messages, { id: createMessageId(), role, text }];
+  function appendMessage(role: Role, text: string, isHtml = false) {
+    messages = [...messages, { id: createMessageId(), role, text, isHtml }];
   }
 
   async function sendMessage() {
@@ -111,11 +112,103 @@
     }
   }
 
+  function buildHighlightRemovalActions(choicesToClear: Choice[]): MapAction[] {
+    return choicesToClear
+      .flatMap((choice) => choice.mapActions ?? [])
+      .map((action) => {
+        const type = action.type as MapActionType | string;
+        if (type === MapActionType.AddLayer) {
+          const payload = action.payload as AddLayerPayload;
+          return payload?.id
+            ? ({
+                type: MapActionType.RemoveLayer,
+                payload: { id: payload.id }
+              } as MapAction)
+            : null;
+        }
+        if (type === MapActionType.AddMarker) {
+          const payload = action.payload as { id?: string };
+          return payload?.id
+            ? ({
+                type: MapActionType.RemoveMarker,
+                payload: { id: payload.id }
+              } as MapAction)
+            : null;
+        }
+        return null;
+      })
+      .filter((action): action is MapAction => action !== null);
+  }
+
+  function extractHighlightActions(choice: Choice): MapAction[] {
+    return (
+      choice.mapActions?.filter((action) => {
+        const type = action.type as MapActionType | string;
+        return type === MapActionType.AddLayer || type === MapActionType.AddMarker;
+      }) ?? []
+    );
+  }
+
+  function renderOerebExtractMessage(message: string | undefined) {
+    if (!message) {
+      return null;
+    }
+    const urls = message.match(/https?:\/\/\S+/g) ?? [];
+    const pdfUrl = urls[0];
+    const mapUrl = urls[1];
+    if (!pdfUrl || !mapUrl) {
+      return null;
+    }
+    const template = `
+      <div>ÖREB-Auszug erstellt.</div>
+      <div>PDF: <a href="${pdfUrl}" target="_blank" rel="noreferrer">${pdfUrl}</a></div>
+      <div>Fachanwendung: <a href="${mapUrl}" target="_blank" rel="noreferrer">${mapUrl}</a></div>
+    `;
+    return template;
+  }
+
+  function renderCadastralPlanMessage(message: string | undefined) {
+    if (!message) {
+      return null;
+    }
+    const urls = message.match(/https?:\/\/\S+/g) ?? [];
+    const pdfUrl = urls[0];
+    if (!pdfUrl) {
+      return null;
+    }
+    const template = `
+      <div>Auszug aus dem Plan für das Grundbuch wurde erstellt. Laden sie ihn <a href="${pdfUrl}" target="_blank" rel="noreferrer">hier</a> herunter.</div>
+    `;
+    return template;
+  }
+
   function handleChatResponse(response: ChatResponse) {
     let hasChoices = false;
+    const choiceHighlightRemovals = buildHighlightRemovalActions(pendingChoices);
+    if (choiceHighlightRemovals.length) {
+      mapActionBus.dispatch(choiceHighlightRemovals);
+    }
     response.steps?.forEach((step) => {
       if (step.message) {
-        appendMessage('bot', step.message);
+        if (step.intent === 'oereb_extract') {
+          const html = renderOerebExtractMessage(step.message);
+          if (html) {
+            appendMessage('bot', html, true);
+          } else {
+            appendMessage('bot', step.message);
+          }
+        } else if (step.intent === 'cadastral_plan') {
+          const html = renderCadastralPlanMessage(step.message);
+          if (html) {
+            appendMessage('bot', html, true);
+          } else {
+            appendMessage('bot', step.message);
+          }
+        } else if (step.intent === 'geothermal_probe_assessment') {
+          appendMessage('bot', step.message, true);
+        } else {
+          appendMessage('bot', step.message);
+        }
       }
 
       if (step.mapActions?.length) {
@@ -215,7 +308,11 @@
     <div class="chat-messages" aria-live="polite" bind:this={chatMessagesContainer}>
       {#each messages as message (message.id)}
         <div class={`message ${message.role === 'bot' ? 'bot-message' : 'user-message'}`}>
-          {message.text}
+          {#if message.isHtml}
+            {@html message.text}
+          {:else}
+            {message.text}
+          {/if}
         </div>
       {/each}
     </div>
@@ -224,7 +321,33 @@
         <p class="choice-message">{pendingChoiceMessage || 'Bitte wähle eine Option:'}</p>
         <div class="choice-buttons">
           {#each pendingChoices as choice (choice.id)}
-            <Button kind="tertiary" disabled={isSending} on:click={() => sendChoice(choice)}>{choice.label}</Button>
+            <Button
+              kind="tertiary"
+              disabled={isSending}
+              on:click={() => sendChoice(choice)}
+              on:mouseenter={() => {
+                const highlightActions = extractHighlightActions(choice);
+                mapActionBus.dispatch(highlightActions);
+              }}
+              on:mouseleave={() => {
+                const removals = buildHighlightRemovalActions([choice]);
+                if (removals.length) {
+                  mapActionBus.dispatch(removals);
+                }
+              }}
+              on:focus={() => {
+                const highlightActions = extractHighlightActions(choice);
+                mapActionBus.dispatch(highlightActions);
+              }}
+              on:blur={() => {
+                const removals = buildHighlightRemovalActions([choice]);
+                if (removals.length) {
+                  mapActionBus.dispatch(removals);
+                }
+              }}
+            >
+              {choice.label}
+            </Button>
           {/each}
         </div>
       </div>
