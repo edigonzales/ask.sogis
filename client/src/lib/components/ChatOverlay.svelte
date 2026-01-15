@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, TextArea } from 'carbon-components-svelte';
+  import { Button, Loading, TextArea } from 'carbon-components-svelte';
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
@@ -370,7 +370,12 @@
         disabled={!prompt.trim() || isSending}
         on:click={sendMessage}
       >
-        {isSending ? 'Sending…' : 'Send'}
+        <span class="send-button-content">
+          <span>{isSending ? 'Sending…' : 'Send'}</span>
+          {#if isSending}
+            <Loading small active withOverlay={false} description="Sending message" />
+          {/if}
+        </span>
       </Button>
     </div>
   </div>
@@ -541,6 +546,12 @@
     inline-size: auto;
     max-inline-size: none;
     min-inline-size: 0;
+  }
+
+  :global(.send-button-content) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .sidebar {
