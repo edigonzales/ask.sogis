@@ -82,6 +82,11 @@ public class ChatOrchestrator {
             ActionPlan ap = actionPlanner.toActionPlan(step.intent(), aggResult);
             var message = Optional.ofNullable(aggResult).map(PlannerOutput.Result::message).orElse(ap.message());
             steps.add(new ChatResponse.Step(step.intent(), ap.status(), message, ap.mapActions(), ap.choices()));
+            if ("needs_user_choice".equals(ap.status()) && pendingChoiceStore.peek(sessionId).isEmpty()) {
+                int nextIndex = step.toolCalls() == null ? 0 : step.toolCalls().size();
+                pendingChoiceStore.save(sessionId,
+                        new PendingChoiceStore.PendingChoiceContext(plan.requestId(), step, nextIndex, aggResult.items()));
+            }
         }
         return steps;
     }
@@ -103,8 +108,14 @@ public class ChatOrchestrator {
             return new ChatResponse(context.requestId(), List.of(step), aggregateStatus(List.of(step)));
         }
 
-        PlannerOutput.Result result = executeToolCalls(req.sessionId(), context.requestId(), context.step(),
-                context.nextToolCallIndex(), selectedItem);
+        PlannerOutput.Result result;
+        int toolCallCount = context.step().toolCalls() == null ? 0 : context.step().toolCalls().size();
+        if (context.nextToolCallIndex() >= toolCallCount) {
+            result = new PlannerOutput.Result("ok", List.of(selectedItem), "Auswahl übernommen.");
+        } else {
+            result = executeToolCalls(req.sessionId(), context.requestId(), context.step(),
+                    context.nextToolCallIndex(), selectedItem);
+        }
         ActionPlan ap = actionPlanner.toActionPlan(context.step().intent(), result);
         var message = Optional.ofNullable(result).map(PlannerOutput.Result::message).orElse(ap.message());
         List<ChatResponse.Step> steps = List
@@ -209,6 +220,10 @@ public class ChatOrchestrator {
         if (choiceItems == null || choiceItems.isEmpty() || choiceId == null) {
             return null;
         }
-        return choiceItems.stream().filter(item -> choiceId.equals(String.valueOf(item.get("id")))).findFirst().orElse(null);
+        return choiceItems.stream()
+                .filter(item -> choiceId.equals(Optional.ofNullable(McpResponseItem.id(item))
+                        .orElseGet(() -> String.valueOf(item.get("id")))))
+                .findFirst()
+                .orElse(null);
     }
 }

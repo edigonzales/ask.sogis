@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { Button, TextArea } from 'carbon-components-svelte';
+  import { Button, Checkbox, TextArea } from 'carbon-components-svelte';
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
+  import ListChecked from 'carbon-icons-svelte/lib/ListChecked.svelte';
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
   import { afterUpdate, onMount } from 'svelte';
-  import { CHAT_OVERLAY_ID } from '$lib/constants';
+  import { CHAT_OVERLAY_ID, TOC_OVERLAY_ID } from '$lib/constants';
   import type { AddLayerPayload, ChatResponse, Choice, MapAction } from '$lib/api/chat-response';
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
+  import { layerStore } from '$lib/stores/layers';
 
   type Role = 'bot' | 'user';
   type ChatMessage = { id: string; role: Role; text: string; isHtml?: boolean };
@@ -16,8 +18,8 @@
   let chatMessagesContainer: HTMLDivElement;
   const createSessionId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
   let sessionId = createSessionId();
-  let isOpen = true;
-  let isTransitioning = false;
+  let isChatOpen = true;
+  let isTocOpen = false;
   let prompt = '';
   let isSending = false;
   const createMessageId = () => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -31,13 +33,48 @@
   let messages: ChatMessage[] = [createWelcomeMessage()];
   let pendingChoices: Choice[] = [];
   let pendingChoiceMessage = '';
+  const blockedChoiceFragments = ['Quelle Bund', 'Quelle geodienste.ch', 'Quelle Emch+Berger'];
 
-  function toggleOverlay() {
-    isTransitioning = true;
-    isOpen = !isOpen;
-    setTimeout(() => {
-      isTransitioning = false;
-    }, 300);
+  function toggleChatOverlay() {
+    isChatOpen = !isChatOpen;
+    if (isChatOpen) {
+      isTocOpen = false;
+    }
+  }
+
+  function toggleTocOverlay() {
+    isTocOpen = !isTocOpen;
+    if (isTocOpen) {
+      isChatOpen = false;
+    }
+  }
+
+  function handleTocVisibilityToggle(id: string, event: Event) {
+    const target = event?.currentTarget as HTMLInputElement | null;
+    const visible =
+      (event as CustomEvent<{ checked?: boolean }>)?.detail?.checked ??
+      target?.checked ??
+      false;
+    mapActionBus.dispatch([
+      {
+        type: MapActionType.SetLayerVisibility,
+        payload: { id, visible }
+      }
+    ]);
+  }
+
+  function handleTocRemove(id: string) {
+    mapActionBus.dispatch([
+      {
+        type: MapActionType.RemoveLayer,
+        payload: { id }
+      }
+    ]);
+  }
+
+  function isBlockedChoice(choice: Choice) {
+    const label = choice?.label ?? '';
+    return blockedChoiceFragments.some((fragment) => label.includes(fragment));
   }
 
   function appendMessage(role: Role, text: string, isHtml = false) {
@@ -286,19 +323,22 @@
   });
 </script>
 
-{#if isOpen}
+{#if isChatOpen}
   <div class="chat-overlay" id={CHAT_OVERLAY_ID}>
     <div class="chat-header">
-      <div class="chat-toolbar" role="toolbar" aria-label="Chat actions">
-        <button class="icon-button" type="button" on:click={clearChatAndMap} title="Clear chat & map">
-          <TrashCan size={24} aria-hidden="true" />
-          <span class="sr-only">Clear chat and map</span>
-        </button>
+      <div class="chat-header-left">
+        <h3 class="overlay-title">Chat with LLM</h3>
+        <div class="chat-toolbar" role="toolbar" aria-label="Chat actions">
+          <button class="icon-button" type="button" on:click={clearChatAndMap} title="Clear chat & map">
+            <TrashCan size={24} aria-hidden="true" />
+            <span class="sr-only">Clear chat and map</span>
+          </button>
+        </div>
       </div>
       <button
         class="close-button"
         type="button"
-        on:click={toggleOverlay}
+        on:click={toggleChatOverlay}
         aria-label="Close chat"
         aria-controls={CHAT_OVERLAY_ID}
       >
@@ -323,23 +363,39 @@
           {#each pendingChoices as choice (choice.id)}
             <Button
               kind="tertiary"
-              disabled={isSending}
-              on:click={() => sendChoice(choice)}
+              disabled={isSending || isBlockedChoice(choice)}
+              on:click={() => {
+                if (!isBlockedChoice(choice)) {
+                  sendChoice(choice);
+                }
+              }}
               on:mouseenter={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:mouseleave={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const removals = buildHighlightRemovalActions([choice]);
                 if (removals.length) {
                   mapActionBus.dispatch(removals);
                 }
               }}
               on:focus={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const highlightActions = extractHighlightActions(choice);
                 mapActionBus.dispatch(highlightActions);
               }}
               on:blur={() => {
+                if (isBlockedChoice(choice)) {
+                  return;
+                }
                 const removals = buildHighlightRemovalActions([choice]);
                 if (removals.length) {
                   mapActionBus.dispatch(removals);
@@ -376,29 +432,80 @@
   </div>
 {/if}
 
+{#if isTocOpen}
+  <div class="toc-overlay" id={TOC_OVERLAY_ID}>
+    <div class="toc-header">
+      <h3 class="overlay-title">Table of Contents</h3>
+      <button
+        class="close-button"
+        type="button"
+        on:click={toggleTocOverlay}
+        aria-label="Close table of contents"
+        aria-controls={TOC_OVERLAY_ID}
+      >
+        <CloseOutline size={24} aria-hidden="true" />
+      </button>
+    </div>
+    <div class="toc-body">
+      {#if $layerStore.length === 0}
+        <p class="toc-empty">Noch keine Layer geladen.</p>
+      {:else}
+        <ul class="toc-list">
+          {#each $layerStore as layer (layer.id)}
+            <li class="toc-item">
+              <Checkbox
+                id={`toc-${layer.id}`}
+                checked={layer.visible}
+                labelText={layer.label}
+                on:change={(event) => handleTocVisibilityToggle(layer.id, event)}
+              />
+              <button
+                class="icon-button toc-remove"
+                type="button"
+                title="Layer entfernen"
+                on:click={() => handleTocRemove(layer.id)}
+              >
+                <TrashCan size={20} aria-hidden="true" />
+                <span class="sr-only">Layer entfernen</span>
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <div class="sidebar">
-  <div
-    class="sidebar-icons"
-    on:click={toggleOverlay}
-    role="button"
-    tabindex="0"
-    aria-controls={CHAT_OVERLAY_ID}
-    aria-expanded={isOpen}
-    aria-label={isOpen ? 'Close chat overlay' : 'Open chat overlay'}
-    aria-pressed={isOpen}
-    on:keydown={(e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleOverlay();
-      }
-    }}
-  >
-    <div class="icon chat-icon" title="Open Chat">
+  <div class="sidebar-icons">
+    <button
+      class="icon chat-icon"
+      type="button"
+      title="Open Chat"
+      aria-controls={CHAT_OVERLAY_ID}
+      aria-expanded={isChatOpen}
+      aria-pressed={isChatOpen}
+      on:click={toggleChatOverlay}
+    >
       <ChatBot size={24} aria-hidden="true" />
-    </div>
-    <div class="icon help-icon" title="Help">
+      <span class="sr-only">Open chat overlay</span>
+    </button>
+    <button
+      class="icon toc-icon"
+      type="button"
+      title="Open Table of Contents"
+      aria-controls={TOC_OVERLAY_ID}
+      aria-expanded={isTocOpen}
+      aria-pressed={isTocOpen}
+      on:click={toggleTocOverlay}
+    >
+      <ListChecked size={24} aria-hidden="true" />
+      <span class="sr-only">Open table of contents</span>
+    </button>
+    <button class="icon help-icon" type="button" title="Help">
       <Help size={24} aria-hidden="true" />
-    </div>
+      <span class="sr-only">Help</span>
+    </button>
   </div>
 </div>
 
@@ -421,13 +528,20 @@
     border: 0px solid rgba(0, 0, 0, 0.1); /* Remove border */
   }
 
-  .chat-header {
+  .chat-header,
+  .toc-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
     padding-bottom: 8px;
     border-bottom: 1px solid #e0e0e0;
+  }
+
+  .chat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .chat-toolbar {
@@ -472,6 +586,12 @@
 
   .close-button:hover {
     background-color: #e0e0e0;
+  }
+
+  .overlay-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
   }
 
   .chat-messages {
@@ -527,6 +647,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
   }
 
   .input-textarea {
@@ -566,7 +688,6 @@
     flex-direction: column;
     gap: 4px;
     margin-top: 60px; /* Add some top margin for spacing */
-    cursor: pointer;
   }
 
   .icon {
@@ -578,6 +699,10 @@
     border-radius: 8px;
     color: rgb(22, 22, 22);
     transition: background-color 0.2s;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
   }
 
   .icon:hover {
@@ -594,6 +719,56 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .toc-overlay {
+    position: absolute;
+    top: 0;
+    left: 64px;
+    width: 380px;
+    height: 100vh;
+    background-color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .toc-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .toc-empty {
+    margin: 12px 0;
+    color: #525252;
+  }
+
+  .toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toc-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px;
+    border-radius: 6px;
+    background: #f4f4f4;
+  }
+
+  .toc-remove {
+    flex-shrink: 0;
   }
 
 

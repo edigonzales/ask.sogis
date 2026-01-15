@@ -10,6 +10,7 @@ export enum MapActionType {
   RemoveMarker = 'removeMarker',
   AddLayer = 'addLayer',
   RemoveLayer = 'removeLayer',
+  SetLayerVisibility = 'setLayerVisibility',
   ClearMap = 'clearMap'
 }
 
@@ -43,12 +44,18 @@ export interface RemoveLayerPayload extends BasePayload {
   id: string;
 }
 
+export interface SetLayerVisibilityPayload extends BasePayload {
+  id: string;
+  visible: boolean;
+}
+
 export type MapActionPayload =
   | SetViewPayload
   | AddMarkerPayload
   | RemoveMarkerPayload
   | AddLayerPayload
   | RemoveLayerPayload
+  | SetLayerVisibilityPayload
   | BasePayload;
 
 export interface MapAction<TPayload extends MapActionPayload = MapActionPayload> {

@@ -5,6 +5,7 @@
   import View from 'ol/View';
   import type { AnimationOptions } from 'ol/View';
   import TileLayer from 'ol/layer/Tile';
+  import ImageLayer from 'ol/layer/Image';
   import WMTSSource from 'ol/source/WMTS';
   import WMTSTileGrid from 'ol/tilegrid/WMTS';
   import VectorLayer from 'ol/layer/Vector';
@@ -24,6 +25,7 @@
   import BackgroundSelector from './BackgroundSelector.svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import { mapActionBus } from '$lib/stores/mapActions';
+  import { layerStore } from '$lib/stores/layers';
   import { MapActionType } from '$lib/api/chat-response';
   import type {
     MapAction,
@@ -31,10 +33,11 @@
     AddMarkerPayload,
     RemoveMarkerPayload,
     AddLayerPayload,
+    SetLayerVisibilityPayload,
     RemoveLayerPayload,
     Coordinates
   } from '$lib/api/chat-response';
-  import TileWMS from 'ol/source/TileWMS';
+  import ImageWMS from 'ol/source/ImageWMS';
 
   const BACKGROUND_OPTIONS = [
     { id: 'none', text: 'Kein Hintergrund', layerName: null },
@@ -61,7 +64,10 @@
   let map: OlMap | null = null;
   let markerSource: VectorSource | null = null;
   let markerLayer: VectorLayer<VectorSource> | null = null;
-  const dynamicLayerMap = new Map<string, TileLayer<WMTSSource | TileWMS> | VectorLayer<VectorSource>>();
+  const dynamicLayerMap = new Map<
+    string,
+    TileLayer<WMTSSource> | ImageLayer<ImageWMS> | VectorLayer<VectorSource>
+  >();
   let selectedBackgroundId = 'sw';
   const backgroundLayerMap = new globalThis.Map<string, TileLayer<WMTSSource> | null>();
   let mapActionUnsubscribe: (() => void) | null = null;
@@ -252,6 +258,12 @@
       vectorLayer.setZIndex(900);
       map.addLayer(vectorLayer);
       dynamicLayerMap.set(payload.id, vectorLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -274,6 +286,12 @@
       });
       map.addLayer(wmtsLayer);
       dynamicLayerMap.set(payload.id, wmtsLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -282,17 +300,25 @@
       if (!url) {
         return Promise.resolve();
       }
-      const wmsLayer = new TileLayer({
-        source: new TileWMS({
+      const params = { ...(payload.source ?? {}) } as Record<string, unknown>;
+      delete params.url;
+      const wmsLayer = new ImageLayer({
+        source: new ImageWMS({
           url,
-          params: payload.source ?? {},
-          serverType: 'geoserver',
-          transition: 0
+          params,
+          serverType: 'qgis',
+          ratio: 1
         }),
         visible: payload.visible ?? true
       });
       map.addLayer(wmsLayer);
       dynamicLayerMap.set(payload.id, wmsLayer);
+      layerStore.upsertLayer({
+        id: payload.id,
+        label: (payload.label as string) ?? payload.id,
+        visible: payload.visible ?? true,
+        type: payload.type
+      });
       return Promise.resolve();
     }
 
@@ -308,6 +334,19 @@
       map.removeLayer(layer);
       dynamicLayerMap.delete(payload.id);
     }
+    layerStore.removeLayer(payload.id);
+    return Promise.resolve();
+  }
+
+  function handleSetLayerVisibility(payload: SetLayerVisibilityPayload): Promise<void> {
+    if (!map || !payload?.id) {
+      return Promise.resolve();
+    }
+    const layer = dynamicLayerMap.get(payload.id);
+    if (layer) {
+      layer.setVisible(Boolean(payload.visible));
+    }
+    layerStore.setVisibility(payload.id, Boolean(payload.visible));
     return Promise.resolve();
   }
 
@@ -342,16 +381,21 @@
       .getArray()
       .slice()
       .forEach((layer) => {
-        if (!(layer instanceof TileLayer)) {
+        if (layer instanceof TileLayer) {
+          if (backgroundLayers.has(layer)) {
+            return;
+          }
+          const source = layer.getSource();
+          if (source instanceof WMTSSource) {
+            map?.removeLayer(layer);
+          }
           return;
         }
-        if (backgroundLayers.has(layer)) {
-          return;
-        }
-
-        const source = layer.getSource();
-        if (source instanceof WMTSSource || source instanceof TileWMS) {
-          map?.removeLayer(layer);
+        if (layer instanceof ImageLayer) {
+          const source = layer.getSource();
+          if (source instanceof ImageWMS) {
+            map?.removeLayer(layer);
+          }
         }
       });
   }
@@ -359,6 +403,7 @@
   function handleClearMap(): Promise<void> {
     clearVectorLayers();
     removeNonBackgroundTileLayers();
+    layerStore.clear();
     return Promise.resolve();
   }
 
@@ -375,6 +420,8 @@
         return handleAddLayer(action.payload as AddLayerPayload);
       case MapActionType.RemoveLayer:
         return handleRemoveLayer(action.payload as RemoveLayerPayload);
+      case MapActionType.SetLayerVisibility:
+        return handleSetLayerVisibility(action.payload as SetLayerVisibilityPayload);
       case MapActionType.ClearMap:
         return handleClearMap();
       default:
