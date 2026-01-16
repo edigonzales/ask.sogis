@@ -35,6 +35,16 @@
   let pendingChoiceMessage = '';
   const blockedChoiceFragments = ['Quelle Bund', 'Quelle geodienste.ch', 'Quelle Emch+Berger'];
 
+  function normalizeChoices(rawChoices: ChatResponse['steps'][number]['choices']): Choice[] {
+    if (Array.isArray(rawChoices)) {
+      return rawChoices;
+    }
+    if (!rawChoices) {
+      return [];
+    }
+    return Object.values(rawChoices);
+  }
+
   function toggleChatOverlay() {
     isChatOpen = !isChatOpen;
     if (isChatOpen) {
@@ -265,8 +275,9 @@
         mapActionBus.dispatch(filterMapActions(step.mapActions));
       }
 
-      if (step.choices?.length) {
-        pendingChoices = step.choices;
+      const stepChoices = normalizeChoices(step.choices);
+      if (stepChoices.length) {
+        pendingChoices = stepChoices;
         pendingChoiceMessage = step.message ?? 'Bitte wähle eine Option.';
         hasChoices = true;
       }

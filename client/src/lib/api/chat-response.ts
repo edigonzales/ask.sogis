@@ -78,7 +78,7 @@ export interface ChatStep {
   status: string;
   message: string;
   mapActions: MapAction[];
-  choices: Choice[];
+  choices: Choice[] | Record<string, Choice> | null;
 }
 
 export interface ChatResponse {
