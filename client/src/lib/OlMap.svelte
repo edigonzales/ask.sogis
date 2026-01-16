@@ -25,7 +25,7 @@
   import BackgroundSelector from './BackgroundSelector.svelte';
   import { CHAT_OVERLAY_ID } from '$lib/constants';
   import { mapActionBus } from '$lib/stores/mapActions';
-  import { layerStore } from '$lib/stores/layers';
+  import { layerStore, type TocLayer } from '$lib/stores/layers';
   import { MapActionType } from '$lib/api/chat-response';
   import type {
     MapAction,
@@ -71,6 +71,7 @@
   let selectedBackgroundId = 'sw';
   const backgroundLayerMap = new globalThis.Map<string, TileLayer<WMTSSource> | null>();
   let mapActionUnsubscribe: (() => void) | null = null;
+  let layerStoreUnsubscribe: (() => void) | null = null;
 
   function setBackground(selectedId: string) {
     selectedBackgroundId = selectedId;
@@ -325,6 +326,18 @@
     return Promise.resolve();
   }
 
+  function syncLayerZIndices(layers: TocLayer[]) {
+    const baseZIndex = 100;
+    const lastIndex = layers.length - 1;
+    layers.forEach((layer, index) => {
+      const mapLayer = dynamicLayerMap.get(layer.id);
+      if (!mapLayer) {
+        return;
+      }
+      mapLayer.setZIndex(baseZIndex + (lastIndex - index));
+    });
+  }
+
   function handleRemoveLayer(payload: RemoveLayerPayload): Promise<void> {
     if (!map || !payload?.id) {
       return Promise.resolve();
@@ -541,6 +554,10 @@
     markerLayer.setZIndex(1000);
     map.addLayer(markerLayer);
 
+    layerStoreUnsubscribe = layerStore.subscribe((layers) => {
+      syncLayerZIndices(layers);
+    });
+
     mapActionUnsubscribe = mapActionBus.subscribe((actions) => {
       if (!actions.length) {
         return;
@@ -577,6 +594,7 @@
       map.setTarget(null);
     }
     mapActionUnsubscribe?.();
+    layerStoreUnsubscribe?.();
     markerLayer = null;
     markerSource = null;
     backgroundLayerMap.clear();

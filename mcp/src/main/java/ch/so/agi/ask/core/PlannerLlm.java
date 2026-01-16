@@ -168,6 +168,7 @@ public class PlannerLlm {
                   sollst du für Lokalisierungs-/Layer-/Fragen mindestens eine passende Capability vorschlagen.
                 - Typische Wörter wie "Karte", "Layer" oder "Ebene" kannst du in zusammengesetzten Wörtern für die Suche von 
                   Layern ignorieren, z.B. "Gewässerschutzkarte" => "Gewässerschutz" oder "Ortsplanungsebene" => "Ortsplanung".
+                - Offensichtliche Orthografiefehler korrigierst du selbständig, z.B. "Strase" => "Strasse", "Gewässr" => "Gewässer".
                 - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
                 - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
