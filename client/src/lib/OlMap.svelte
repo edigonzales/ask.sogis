@@ -328,12 +328,13 @@
 
   function syncLayerZIndices(layers: TocLayer[]) {
     const baseZIndex = 100;
+    const lastIndex = layers.length - 1;
     layers.forEach((layer, index) => {
       const mapLayer = dynamicLayerMap.get(layer.id);
       if (!mapLayer) {
         return;
       }
-      mapLayer.setZIndex(baseZIndex + index);
+      mapLayer.setZIndex(baseZIndex + (lastIndex - index));
     });
   }
 
