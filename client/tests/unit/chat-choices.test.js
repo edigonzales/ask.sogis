@@ -48,4 +48,17 @@ describe('normalizeChoices', () => {
     assert.deepEqual(normalizeChoices(null), []);
     assert.deepEqual(normalizeChoices(undefined), []);
   });
+
+  it('deduplicates choices with the same id', () => {
+    const choices = [
+      { id: 'dup', label: 'Layer One' },
+      { id: 'dup', label: 'Layer One Duplicate' },
+      { id: 'unique', label: 'Layer Two' }
+    ];
+
+    assert.deepEqual(normalizeChoices(choices), [
+      { id: 'dup', label: 'Layer One' },
+      { id: 'unique', label: 'Layer Two' }
+    ]);
+  });
 });

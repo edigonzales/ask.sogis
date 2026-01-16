@@ -50,11 +50,28 @@ function coerceChoice(value) {
  */
 export function normalizeChoices(rawChoices) {
   if (Array.isArray(rawChoices)) {
-    return rawChoices.map(coerceChoice).filter((choice) => choice !== null);
+    const normalized = rawChoices.map(coerceChoice).filter((choice) => choice !== null);
+    return dedupeChoices(normalized);
   }
   if (!rawChoices) {
     return [];
   }
   const values = Object.values(rawChoices);
-  return values.map(coerceChoice).filter((choice) => choice !== null);
+  const normalized = values.map(coerceChoice).filter((choice) => choice !== null);
+  return dedupeChoices(normalized);
+}
+
+/**
+ * @param {Choice[]} choices
+ * @returns {Choice[]}
+ */
+function dedupeChoices(choices) {
+  const seen = new Set();
+  return choices.filter((choice) => {
+    if (seen.has(choice.id)) {
+      return false;
+    }
+    seen.add(choice.id);
+    return true;
+  });
 }
