@@ -77,6 +77,19 @@
     return blockedChoiceFragments.some((fragment) => label.includes(fragment));
   }
 
+  function shouldSkipLayerAction(action: MapAction) {
+    if (action.type !== MapActionType.AddLayer) {
+      return false;
+    }
+    const payload = action.payload as AddLayerPayload;
+    const label = typeof payload?.label === 'string' ? payload.label : '';
+    return blockedChoiceFragments.some((fragment) => label.includes(fragment));
+  }
+
+  function filterMapActions(actions: MapAction[]) {
+    return actions.filter((action) => !shouldSkipLayerAction(action));
+  }
+
   function appendMessage(role: Role, text: string, isHtml = false) {
     messages = [...messages, { id: createMessageId(), role, text, isHtml }];
   }
@@ -249,7 +262,7 @@
       }
 
       if (step.mapActions?.length) {
-        mapActionBus.dispatch(step.mapActions);
+        mapActionBus.dispatch(filterMapActions(step.mapActions));
       }
 
       if (step.choices?.length) {
@@ -479,7 +492,7 @@
 <div class="sidebar">
   <div class="sidebar-icons">
     <button
-      class="icon chat-icon"
+      class={`icon chat-icon ${isChatOpen ? 'is-active' : ''}`}
       type="button"
       title="Open Chat"
       aria-controls={CHAT_OVERLAY_ID}
@@ -491,7 +504,7 @@
       <span class="sr-only">Open chat overlay</span>
     </button>
     <button
-      class="icon toc-icon"
+      class={`icon toc-icon ${isTocOpen ? 'is-active' : ''}`}
       type="button"
       title="Open Table of Contents"
       aria-controls={TOC_OVERLAY_ID}
@@ -706,6 +719,10 @@
   }
 
   .icon:hover {
+    background-color: #e0e0e0;
+  }
+
+  .icon.is-active {
     background-color: #e0e0e0;
   }
 
