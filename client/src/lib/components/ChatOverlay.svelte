@@ -11,6 +11,7 @@
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
   import { layerStore } from '$lib/stores/layers';
+  import { normalizeChoices } from '$lib/utils/chatChoices';
 
   type Role = 'bot' | 'user';
   type ChatMessage = { id: string; role: Role; text: string; isHtml?: boolean };
@@ -34,27 +35,6 @@
   let pendingChoices: Choice[] = [];
   let pendingChoiceMessage = '';
   const blockedChoiceFragments = ['Quelle Bund', 'Quelle geodienste.ch', 'Quelle Emch+Berger'];
-
-  type RawChoices = ChatResponse['steps'][number]['choices'] | undefined;
-
-  function isChoice(value: unknown): value is Choice {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
-    const candidate = value as Choice;
-    return typeof candidate.id === 'string' && typeof candidate.label === 'string';
-  }
-
-  function normalizeChoices(rawChoices: RawChoices): Choice[] {
-    if (Array.isArray(rawChoices)) {
-      return rawChoices.filter(isChoice);
-    }
-    if (!rawChoices) {
-      return [];
-    }
-    const values = Object.values(rawChoices);
-    return values.filter(isChoice);
-  }
 
   function toggleChatOverlay() {
     isChatOpen = !isChatOpen;
