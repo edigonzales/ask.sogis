@@ -11,6 +11,7 @@
   import { MapActionType } from '$lib/api/chat-response';
   import { mapActionBus } from '$lib/stores/mapActions';
   import { layerStore } from '$lib/stores/layers';
+  import { normalizeChoices } from '$lib/utils/chatChoices';
 
   type Role = 'bot' | 'user';
   type ChatMessage = { id: string; role: Role; text: string; isHtml?: boolean };
@@ -265,8 +266,9 @@
         mapActionBus.dispatch(filterMapActions(step.mapActions));
       }
 
-      if (step.choices?.length) {
-        pendingChoices = step.choices;
+      const stepChoices = normalizeChoices(step.choices);
+      if (stepChoices.length) {
+        pendingChoices = stepChoices;
         pendingChoiceMessage = step.message ?? 'Bitte wähle eine Option.';
         hasChoices = true;
       }

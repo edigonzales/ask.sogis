@@ -137,4 +137,114 @@ test.describe('ChatOverlay Component', () => {
     const emptyMessage = tocOverlay.locator('.toc-empty');
     await expect(emptyMessage).toContainText('Noch keine Layer geladen');
   });
+
+  test('renders layer choices when chat response includes multiple steps', async ({ page }) => {
+    await page.route('**/api/chat', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.fulfill({ status: 405, body: 'Method not allowed' });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          requestId: 'req-20260116-0001',
+          steps: [
+            {
+              intent: 'search_place',
+              status: 'ok',
+              message: '1 Gemeinden gefunden.',
+              mapActions: [
+                {
+                  type: 'setView',
+                  payload: {
+                    center: [2596021.5, 1227678.5],
+                    zoom: 17,
+                    crs: 'EPSG:2056',
+                    extent: [2592561.0, 1223174.0, 2599482.0, 1232183.0]
+                  }
+                }
+              ],
+              choices: []
+            },
+            {
+              intent: 'load_layer',
+              status: 'needs_user_choice',
+              message: 'Mehrere Layer gefunden. Bitte Auswahl treffen.',
+              mapActions: [],
+              choices: [
+                {
+                  id: 'ch.geodienste.planerischer_gewaesserschutz',
+                  label: 'Schutzzonen der ganzen Schweiz (Quelle geodienste.ch)',
+                  confidence: null,
+                  mapActions: [
+                    {
+                      type: 'addLayer',
+                      payload: {
+                        id: 'ch.geodienste.planerischer_gewaesserschutz',
+                        type: 'wms',
+                        source: {
+                          url: 'https://geo.so.ch/api/wms',
+                          LAYERS: 'ch.geodienste.planerischer_gewaesserschutz',
+                          FORMAT: 'image/png',
+                          VERSION: '1.3.0',
+                          TRANSPARENT: true,
+                          CRS: 'EPSG:2056'
+                        },
+                        visible: true,
+                        label: 'Schutzzonen der ganzen Schweiz (Quelle geodienste.ch)'
+                      }
+                    }
+                  ],
+                  data: {
+                    id: 'ch.geodienste.planerischer_gewaesserschutz',
+                    label: 'Schutzzonen der ganzen Schweiz (Quelle geodienste.ch)',
+                    layerId: 'ch.geodienste.planerischer_gewaesserschutz',
+                    type: 'wms',
+                    crs: 'EPSG:2056',
+                    source: {
+                      url: 'https://geo.so.ch/api/wms',
+                      LAYERS: 'ch.geodienste.planerischer_gewaesserschutz',
+                      FORMAT: 'image/png',
+                      VERSION: '1.3.0',
+                      TRANSPARENT: true,
+                      CRS: 'EPSG:2056'
+                    }
+                  }
+                },
+                {
+                  id: 'ch.so.arp.nutzungsplanung::group',
+                  label: 'Nutzungsplanung (Gruppe)',
+                  confidence: null,
+                  mapActions: [],
+                  data: {
+                    id: 'ch.so.arp.nutzungsplanung::group',
+                    label: 'Nutzungsplanung (Gruppe)',
+                    type: 'wms-group',
+                    layerId: 'ch.so.arp.nutzungsplanung',
+                    sublayers: []
+                  }
+                }
+              ]
+            }
+          ],
+          overallStatus: 'needs_user_choice'
+        })
+      });
+    });
+
+    await page.goto('/');
+    await page.waitForTimeout(1000);
+
+    await page.fill('textarea', 'Gibt es in Grenchen Schutzzonen?');
+    await page.click('button:has-text("Send")');
+
+    const choicePanel = page.locator('.choice-panel');
+    await expect(choicePanel).toBeVisible();
+    await expect(choicePanel).toContainText('Mehrere Layer gefunden. Bitte Auswahl treffen.');
+
+    const groupChoiceButton = page.getByRole('button', { name: 'Nutzungsplanung (Gruppe)' });
+    await expect(groupChoiceButton).toBeVisible();
+  });
 });
