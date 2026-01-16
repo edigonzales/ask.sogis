@@ -126,4 +126,5 @@ class FeatureSearchToolsTest {
         assertThat(payload.get("geometry")).isInstanceOf(Map.class);
         assertThat(payload.get("flaechenmass")).isEqualTo("123.4");
     }
+
 }

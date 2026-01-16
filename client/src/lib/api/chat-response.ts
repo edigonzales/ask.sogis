@@ -15,6 +15,7 @@ export enum MapActionType {
 }
 
 export type Coordinates = [number, number, ...number[]];
+export type Extent = [number, number, number, number];
 
 export interface BasePayload {
   [key: string]: unknown;
@@ -24,6 +25,7 @@ export interface SetViewPayload extends BasePayload {
   center: Coordinates;
   zoom: number;
   crs: string;
+  extent?: Extent;
 }
 
 export interface AddMarkerPayload extends BasePayload {

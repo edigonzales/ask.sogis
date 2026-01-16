@@ -37,7 +37,7 @@ sequenceDiagram
             O->>M: execute(capabilityId, args)
             M->>R: execute(capabilityId, args)
 
-            alt capabilityId == "geolocation.geocode"
+            alt capabilityId == "geolocation.geocode.address"
                 R->>GT: geocode(args)
                 GT-->>R: GeolocationResult(status, items[], message)
             else capabilityId == "layers-search"
@@ -88,7 +88,8 @@ sequenceDiagram
 - Signaliert den Gesamtstatus (success, partial, error) auf Basis der gelieferten Tool-Ergebnisse.
 
 ### Verfügbare MCP-Tools
-- **geolocation.geocode**: Adresssuche über geo.so.ch, liefert Treffer mit Bounding-Box und SRID. Setzt den Status je nach Trefferanzahl auf `SUCCESS` oder `NEEDS_USER_CHOICE`.
+- **geolocation.geocode.address**: Adresssuche über geo.so.ch, liefert Treffer mit Bounding-Box und SRID. Setzt den Status je nach Trefferanzahl auf `SUCCESS` oder `NEEDS_USER_CHOICE`.
+- **geolocation.geocode.municipality**: Gemeindesuche über geo.so.ch, liefert Treffer mit Bounding-Box und SRID sowie `displayName`. Setzt den Status je nach Trefferanzahl auf `SUCCESS` oder `NEEDS_USER_CHOICE`.
 - **layers.search**: Mocked Layersuche, gibt zwei Layer-Optionen zurück (`NEEDS_USER_CHOICE`).
 - **oereb.egridByXY**: Holt EGRID(s) und Geometrie zu einer LV95-Koordinate; bei Mehrfachtreffern wird `NEEDS_USER_CHOICE` verwendet.
 - **oereb.extractById**: Baut ÖREB-Auszug-URLs für ein EGRID.
@@ -157,4 +158,4 @@ sequenceDiagram
 ## Frontend-Backend-Zusammenspiel
 - **Svelte-Client**: Stellt die Chatoberfläche bereit, verwaltet die laufende Sitzung (`sessionId`) und verarbeitet eingehende `ChatResponse`-Nachrichten. Führt `mapActions` unmittelbar im Kartenwidget aus und zeigt `choices` zur Interaktion an. Jede Nutzeraktion löst einen POST auf `/api/chat` mit aktueller Unterhaltungshistorie aus.
 - **Spring-Boot-Backend**: Bietet den REST-Endpunkt `/api/chat`, orchestriert die Kommunikation mit dem PlannerLlm, ToolRegistry und ActionPlanner. Über den MCP-Client werden deklarierte MCP-Funktionen (z. B. Geocoding, Layersuche) aufgerufen, deren Ergebnisse in strukturierte Antworten für den Client eingebettet werden.
-- **MCP-Funktionen**: Sind als Spring-Beans annotiert (`@McpTool`) und liefern Domänenfunktionen wie `geolocation.geocode` oder `layers-search`. Der Orchestrator nutzt sie, um auf externe Geodaten oder Layer-Metadaten zuzugreifen, und übersetzt die Resultate in `mapActions` und `choices`, die der Svelte-Client versteht.
+- **MCP-Funktionen**: Sind als Spring-Beans annotiert (`@McpTool`) und liefern Domänenfunktionen wie `geolocation.geocode.address` oder `layers-search`. Der Orchestrator nutzt sie, um auf externe Geodaten oder Layer-Metadaten zuzugreifen, und übersetzt die Resultate in `mapActions` und `choices`, die der Svelte-Client versteht.

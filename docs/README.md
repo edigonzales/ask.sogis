@@ -41,7 +41,7 @@ sequenceDiagram
 ## Request/Response-Flows mit Zwischenresultaten
 
 ### Einfacher Intent: „Gehe zur Langendorfstrasse 19b in Solothurn“
-1) **PlannerLlm** erzeugt einen Plan mit einem Step `goto_address` und einem ToolCall (`geolocation.geocode`) mit der vollständigen Adresse. `result.status = "pending"`.
+1) **PlannerLlm** erzeugt einen Plan mit einem Step `goto_address` und einem ToolCall (`geolocation.geocode.address`) mit der vollständigen Adresse. `result.status = "pending"`.
 2) **ChatOrchestrator** führt den ToolCall aus. Das MCP-Resultat liefert z. B. `status = ok`, `items = [{ id, label, coord, crs }]`. Die Entscheidung fällt sofort, weil genau ein Item vorliegt.
 3) **ActionPlanner** wandelt das Item in MapActions um (z. B. `setView` + `addMarker`) und setzt `status = ok`, `choices = []`.
 4) **ChatResponse** enthält einen Step mit `status = ok`; `overallStatus = ok`.
@@ -66,7 +66,7 @@ sequenceDiagram
 ```
 
 ### Mehrschritt-Intent: „Gehe zur Langendorfstrasse 19b in Solothurn und lade den Gewässerschutzlayer“
-1) **PlannerLlm** liefert zwei Steps in Reihenfolge: (a) `goto_address` mit `geolocation.geocode`, (b) `load_layer` mit `layers.search` (Arg `query="Gewässerschutz"`). Beide `result.status = pending`.
+1) **PlannerLlm** liefert zwei Steps in Reihenfolge: (a) `goto_address` mit `geolocation.geocode.address`, (b) `load_layer` mit `layers.search` (Arg `query="Gewässerschutz"`). Beide `result.status = pending`.
 2) **ChatOrchestrator** arbeitet Step für Step ab:
    - Step 1: MCP liefert genau einen Treffer ⇒ `ActionPlanner` setzt `mapActions = [setView, addMarker]`, `status = ok`.
    - Step 2: MCP findet passenden Layer ⇒ `mapActions = [addLayer]`, `status = ok`.
