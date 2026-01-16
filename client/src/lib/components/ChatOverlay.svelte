@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Checkbox, TextArea } from 'carbon-components-svelte';
+  import { Button, Checkbox, InlineLoading, TextArea } from 'carbon-components-svelte';
   import ChatBot from 'carbon-icons-svelte/lib/ChatBot.svelte';
   import CloseOutline from 'carbon-icons-svelte/lib/CloseOutline.svelte';
   import Help from 'carbon-icons-svelte/lib/Help.svelte';
@@ -370,6 +370,11 @@
           {/if}
         </div>
       {/each}
+      {#if isSending}
+        <div class="message bot-message status-message" role="status" aria-live="polite">
+          <InlineLoading status="active" description="Bot tippt…" />
+        </div>
+      {/if}
     </div>
     {#if pendingChoices.length}
       <div class="choice-panel" role="alert">
@@ -637,6 +642,10 @@
     color: white;
     align-self: flex-end;
     margin-left: auto;
+  }
+
+  .status-message {
+    color: #525252;
   }
 
   .chat-input {
