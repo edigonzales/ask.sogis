@@ -8,7 +8,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
  * consumed by the MCP client/registry.
  */
 public enum McpToolCapability {
-    GEOLOCATION_GEOCODE("geolocation.geocode"),
+    GEOLOCATION_GEOCODE_ADDRESS("geolocation.geocode.address"),
+    GEOLOCATION_GEOCODE_MUNICIPALITY("geolocation.geocode.municipality"),
     LAYERS_SEARCH("layers.search"),
     OEREB_EGRID_BY_XY("oereb.egridByXY"),
     OEREB_EXTRACT_BY_ID("oereb.extractById"),

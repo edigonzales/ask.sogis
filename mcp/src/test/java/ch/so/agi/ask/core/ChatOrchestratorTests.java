@@ -44,7 +44,7 @@ class ChatOrchestratorTests {
                 pendingChoiceStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                         Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                 new PlannerOutput.Result("pending", List.of(), "Adresse wird gesucht"));
 
@@ -55,7 +55,7 @@ class ChatOrchestratorTests {
         when(planner.plan("sess-1", "Bitte zentrieren und Layer laden"))
                 .thenReturn(new PlannerOutput("req-1", List.of(gotoStep, layerStep)));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("coord", List.of(2609767.1, 1228437.4), "id", "7568", "crs", "EPSG:2056")),
                         "Adresse Langendorfstrasse 19b zentriert."));
@@ -88,12 +88,12 @@ class ChatOrchestratorTests {
                 pendingChoiceStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE, Map.of("q", "Solothurn"))),
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS, Map.of("q", "Solothurn"))),
                 new PlannerOutput.Result("pending", List.of(), null));
 
         when(planner.plan(anyString(), anyString())).thenReturn(new PlannerOutput("req-2", List.of(gotoStep)));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap())).thenReturn(new PlannerOutput.Result(
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap())).thenReturn(new PlannerOutput.Result(
                 "ok",
                 List.of(Map.of("id", "opt-1", "label", "Solothurn Stadt", "coord", List.of(2608000d, 1229000d)),
                         Map.of("id", "opt-2", "label", "Solothurn Kanton", "coord", List.of(2610000d, 1230000d))),
@@ -192,8 +192,8 @@ class ChatOrchestratorTests {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
-        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
-                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                         "", Object.class, "", List.of(
                                 new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
                                         "Query string that represents an address", true,
@@ -207,13 +207,13 @@ class ChatOrchestratorTests {
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                                 Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
         var followUpPlan = new PlannerOutput("req-2",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                                 Map.of("q", "Langendorfstrasse 9, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
@@ -222,7 +222,7 @@ class ChatOrchestratorTests {
         when(chatClient.prompt(promptCaptor.capture()).call().content())
                 .thenReturn(Json.write(firstPlan), Json.write(followUpPlan));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("coord", List.of(2609767.1, 1228437.4), "id", "7568", "crs", "EPSG:2056",
                                 "label", "Langendorfstrasse 19b, Solothurn")),
@@ -235,7 +235,7 @@ class ChatOrchestratorTests {
         assertThat(prompts).hasSize(2);
 
         String systemPrompt = messageText(prompts.get(0).getInstructions().get(0));
-        assertThat(systemPrompt).contains("geolocation.geocode");
+        assertThat(systemPrompt).contains("geolocation.geocode.address");
         assertThat(systemPrompt).contains("Params:");
         assertThat(systemPrompt).contains("args (required)");
 
@@ -245,7 +245,7 @@ class ChatOrchestratorTests {
         assertThat(secondPromptMessages.stream().filter(m -> !(m instanceof SystemMessage)).map(this::messageText)
                 .anyMatch(content -> content.contains("Langendorfstrasse 19b"))).isTrue();
         assertThat(secondPromptMessages.stream().filter(m -> !(m instanceof SystemMessage)).map(this::messageText)
-                .anyMatch(content -> content.contains("Tool geolocation.geocode result"))).isTrue();
+                .anyMatch(content -> content.contains("Tool geolocation.geocode.address result"))).isTrue();
     }
 
     @Test
@@ -253,8 +253,8 @@ class ChatOrchestratorTests {
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         ChatClient chatClient = mock(ChatClient.class, RETURNS_DEEP_STUBS);
         var toolRegistry = mock(ch.so.agi.ask.mcp.ToolRegistry.class);
-        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE,
-                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE,
+        when(toolRegistry.listTools()).thenReturn(Map.of(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
+                new ch.so.agi.ask.mcp.ToolRegistry.ToolDescriptor(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                         "", Object.class, "", List.of(
                                 new ch.so.agi.ask.mcp.ToolRegistry.ToolParamDescriptor("args",
                                         "Query string that represents an address", true,
@@ -268,13 +268,13 @@ class ChatOrchestratorTests {
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                                 Map.of("q", "Langendorfstrasse 19b, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
         var secondPlan = new PlannerOutput("req-2",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE,
+                        List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
                                 Map.of("q", "Langendorfstrasse 9, Solothurn"))),
                         new PlannerOutput.Result("pending", List.of(), ""))));
 
@@ -283,7 +283,7 @@ class ChatOrchestratorTests {
         when(chatClient.prompt(promptCaptor.capture()).call().content())
                 .thenReturn(Json.write(firstPlan), Json.write(secondPlan));
 
-        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok",
                         List.of(Map.of("id", "7568", "coord", List.of(2609767.1, 1228437.4), "crs", "EPSG:2056")),
                         "Adresse gefunden"));
@@ -313,7 +313,7 @@ class ChatOrchestratorTests {
                 pendingChoiceStore);
 
         var step = new PlannerOutput.Step(IntentType.GEOTHERMAL_PROBE_ASSESSMENT,
-                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE, Map.of("q", "addr")),
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS, Map.of("q", "addr")),
                         new PlannerOutput.ToolCall(McpToolCapability.PROCESSING_GEOTHERMAL_BORE_INFO_BY_XY, Map.of())),
                 new PlannerOutput.Result("pending", List.of(), ""));
 
@@ -323,7 +323,7 @@ class ChatOrchestratorTests {
                 Map.of("id", "123", "label", "Test address", "coord", List.of(2600000d, 1200000d), "crs", "EPSG:2056"),
                 List.of(), Map.of()).toMap();
 
-        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE), anyMap()))
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap()))
                 .thenReturn(new PlannerOutput.Result("ok", List.of(selectionItem), "Adresse gefunden"));
 
         ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);

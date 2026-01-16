@@ -35,7 +35,8 @@
     AddLayerPayload,
     SetLayerVisibilityPayload,
     RemoveLayerPayload,
-    Coordinates
+    Coordinates,
+    Extent
   } from '$lib/api/chat-response';
   import ImageWMS from 'ol/source/ImageWMS';
 
@@ -123,6 +124,17 @@
     return [x, y];
   }
 
+  function extractExtent(extent?: Extent): Extent | null {
+    if (!Array.isArray(extent) || extent.length < 4) {
+      return null;
+    }
+    const [minX, minY, maxX, maxY] = extent;
+    if (![minX, minY, maxX, maxY].every((value) => Number.isFinite(value))) {
+      return null;
+    }
+    return [minX, minY, maxX, maxY];
+  }
+
   function handleSetView(payload: SetViewPayload): Promise<void> {
     if (!map) {
       return Promise.resolve();
@@ -130,11 +142,35 @@
     const view = map.getView();
     const animation: AnimationOptions = { duration: 350 };
     const coords = extractXY(payload.center);
+    const extent = extractExtent(payload.extent);
     const targetZoom =
       typeof payload.zoom === 'number' && Number.isFinite(payload.zoom) ? payload.zoom : null;
     const targetResolution = targetZoom !== null
       ? view.getResolutionForZoom(targetZoom) ?? undefined
       : view.getResolution();
+    if (extent) {
+      const overlayEl = document.getElementById(CHAT_OVERLAY_ID);
+      const padding: [number, number, number, number] = [24, 24, 24, 24];
+      if (overlayEl) {
+        const mapRect = el?.getBoundingClientRect();
+        const overlayRect = overlayEl.getBoundingClientRect();
+        const blockedWidth = Math.max(
+          0,
+          Math.min(mapRect?.right ?? 0, overlayRect.right) - (mapRect?.left ?? 0)
+        );
+        if (blockedWidth > 0) {
+          padding[3] = Math.max(padding[3], blockedWidth + 24);
+        }
+      }
+      return new Promise((resolve) => {
+        view.fit(extent, {
+          duration: 350,
+          padding,
+          maxZoom: targetZoom ?? undefined,
+          callback: () => resolve()
+        });
+      });
+    }
     if (coords) {
       const overlayEl = document.getElementById(CHAT_OVERLAY_ID);
       if (overlayEl) {
