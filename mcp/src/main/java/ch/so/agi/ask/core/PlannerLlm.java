@@ -10,12 +10,9 @@ import org.springframework.stereotype.Service;
 import ch.so.agi.ask.model.IntentType;
 import ch.so.agi.ask.model.McpToolCapability;
 import ch.so.agi.ask.model.PlannerOutput;
-import ch.so.agi.ask.mcp.ProcessingTools;
 import ch.so.agi.ask.mcp.ToolRegistry;
 
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -48,13 +45,6 @@ public class PlannerLlm {
         String safeUserMessage = Optional.ofNullable(userMessage).orElse("");
         List<Message> history = new ArrayList<>(chatMemoryStore.getMessages(sessionId));
         UserMessage latestUserMessage = new UserMessage(safeUserMessage);
-
-        PlannerOutput mockPlan = maybeMockOerebPlan(safeUserMessage);
-        if (mockPlan != null) {
-            chatMemoryStore.appendMessages(sessionId,
-                    List.of(latestUserMessage, new AssistantMessage(Json.write(mockPlan))));
-            return mockPlan;
-        }
 
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(buildSystemPrompt()));
@@ -217,29 +207,4 @@ public class PlannerLlm {
                 McpToolCapability.PROCESSING_CADASTRAL_PLAN_BY_GEOMETRY.id());
     }
 
-    private PlannerOutput maybeMockOerebPlan(String userMessage) {
-        if (userMessage == null) {
-            return null;
-        }
-        String normalized = userMessage.toLowerCase(Locale.ROOT);
-        if (!normalized.contains("öreb") && !normalized.contains("oereb")) {
-            return null;
-        }
-
-        Matcher matcher = Pattern.compile("(\\d{6,7})\\s*/?\\s*(\\d{6,7})").matcher(userMessage.replace('\n', ' '));
-        if (!matcher.find()) {
-            return null;
-        }
-
-        double x = Double.parseDouble(matcher.group(1));
-        double y = Double.parseDouble(matcher.group(2));
-
-        List<PlannerOutput.Step> steps = List
-                .of(new PlannerOutput.Step(IntentType.OEREB_EXTRACT,
-                        List.of(new PlannerOutput.ToolCall(McpToolCapability.OEREB_EGRID_BY_XY, Map.of("x", x, "y", y)),
-                                new PlannerOutput.ToolCall(McpToolCapability.OEREB_EXTRACT_BY_ID, Map.of())),
-                        new PlannerOutput.Result("pending", List.of(), "")));
-
-        return new PlannerOutput(UUID.randomUUID().toString(), steps);
-    }
 }
