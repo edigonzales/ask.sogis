@@ -153,6 +153,8 @@ public class PlannerLlm {
                 }
 
                 REGELN:
+                - Versuche in der Benutzereingabe Gemeindenamen und Ortschaftsnamen zu identifizieren. 
+                - Interpretiere eine Ortsangabe eher als Gemeinde als postalische Adresse.
                 - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
                 - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmässig
                   sollst du für Lokalisierungs-/Layer-/Fragen mindestens eine passende Capability vorschlagen.
