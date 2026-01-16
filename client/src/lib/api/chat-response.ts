@@ -68,7 +68,7 @@ export interface MapAction<TPayload extends MapActionPayload = MapActionPayload>
 export interface Choice {
   id: string;
   label: string;
-  confidence?: number;
+  confidence?: number | null;
   mapActions?: MapAction[];
   data?: unknown;
 }

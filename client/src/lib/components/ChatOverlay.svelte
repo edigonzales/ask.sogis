@@ -35,14 +35,25 @@
   let pendingChoiceMessage = '';
   const blockedChoiceFragments = ['Quelle Bund', 'Quelle geodienste.ch', 'Quelle Emch+Berger'];
 
-  function normalizeChoices(rawChoices: ChatResponse['steps'][number]['choices']): Choice[] {
+  type RawChoices = ChatResponse['steps'][number]['choices'] | undefined;
+
+  function isChoice(value: unknown): value is Choice {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+    const candidate = value as Choice;
+    return typeof candidate.id === 'string' && typeof candidate.label === 'string';
+  }
+
+  function normalizeChoices(rawChoices: RawChoices): Choice[] {
     if (Array.isArray(rawChoices)) {
-      return rawChoices;
+      return rawChoices.filter(isChoice);
     }
     if (!rawChoices) {
       return [];
     }
-    return Object.values(rawChoices);
+    const values = Object.values(rawChoices);
+    return values.filter(isChoice);
   }
 
   function toggleChatOverlay() {
