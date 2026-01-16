@@ -117,7 +117,7 @@ public class PlannerLlm {
                 - Du erhältst eine Benutzereingabe in natürlicher Sprache (z.B. Deutsch).
                 - Du bestimmst ein oder mehrere Intents (Absichten) wie z.B.:
                   - "%s"   => Gehe zu einer Adresse und zeige sie auf der Karte.
-                  - "%s"     => Lade einen Kartenlayer (Themenkarte).
+                  - "%s"   => Lade einen Kartenlayer (Themenkarte).
                   - "%s"   => Suche nach einem Ort (Stadt, Berg, See, etc.).
                   - "%s"   => Hole einen ÖREB-Auszug für ein Grundstück.
                   - "%s"   => Prüfe die Machbarkeit einer Erdwärmesonde an einer Koordinate.
@@ -164,8 +164,10 @@ public class PlannerLlm {
 
                 REGELN:
                 - "steps" ist eine geordnete Liste. Jeder Eintrag beschreibt exakt einen Intent.
-                - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmäßig
+                - "toolCalls" darf leer sein, wenn du alles aus dem Kontext beantworten kannst, aber standardmässig
                   sollst du für Lokalisierungs-/Layer-/Fragen mindestens eine passende Capability vorschlagen.
+                - Typische Wörter wie "Karte", "Layer" oder "Ebene" kannst du in zusammengesetzten Wörtern für die Suche von 
+                  Layern ignorieren, z.B. "Gewässerschutzkarte" => "Gewässerschutz" oder "Ortsplanungsebene" => "Ortsplanung".
                 - Wenn der User z.B. "Gehe zur Adresse Langendorfstrasse 19b in Solothurn" schreibt:
                   - steps: [ { "intent": "%s", "toolCalls": [ { "capabilityId": "%s", "args": { "q": "<vollständige Adresse>" } } ] } ]
                 - Wenn der User z.B. "Lade mir die Gewässerschutzkarte" schreibt:
