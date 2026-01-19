@@ -270,6 +270,15 @@
       dynamicLayerMap.delete(payload.id);
     }
 
+    const tocExcludedKeywords = ['redline', 'redlining', 'highlight', 'rubberband', 'marker'];
+    const shouldExcludeFromToc = () => {
+      const label = typeof payload.label === 'string' ? payload.label : '';
+      const style = typeof payload.source?.style === 'string' ? payload.source.style : '';
+      const haystack = `${payload.id} ${payload.type} ${label} ${style}`.toLowerCase();
+      return tocExcludedKeywords.some((keyword) => haystack.includes(keyword));
+    };
+    const shouldIncludeInToc = !shouldExcludeFromToc();
+
     if (payload.type === 'geojson') {
       const sourceData = payload.source?.data ?? payload.source;
       if (!sourceData) {
@@ -295,12 +304,14 @@
       vectorLayer.setZIndex(900);
       map.addLayer(vectorLayer);
       dynamicLayerMap.set(payload.id, vectorLayer);
-      layerStore.upsertLayer({
-        id: payload.id,
-        label: (payload.label as string) ?? payload.id,
-        visible: payload.visible ?? true,
-        type: payload.type
-      });
+      if (shouldIncludeInToc) {
+        layerStore.upsertLayer({
+          id: payload.id,
+          label: (payload.label as string) ?? payload.id,
+          visible: payload.visible ?? true,
+          type: payload.type
+        });
+      }
       return Promise.resolve();
     }
 
@@ -323,12 +334,14 @@
       });
       map.addLayer(wmtsLayer);
       dynamicLayerMap.set(payload.id, wmtsLayer);
-      layerStore.upsertLayer({
-        id: payload.id,
-        label: (payload.label as string) ?? payload.id,
-        visible: payload.visible ?? true,
-        type: payload.type
-      });
+      if (shouldIncludeInToc) {
+        layerStore.upsertLayer({
+          id: payload.id,
+          label: (payload.label as string) ?? payload.id,
+          visible: payload.visible ?? true,
+          type: payload.type
+        });
+      }
       return Promise.resolve();
     }
 
@@ -350,12 +363,14 @@
       });
       map.addLayer(wmsLayer);
       dynamicLayerMap.set(payload.id, wmsLayer);
-      layerStore.upsertLayer({
-        id: payload.id,
-        label: (payload.label as string) ?? payload.id,
-        visible: payload.visible ?? true,
-        type: payload.type
-      });
+      if (shouldIncludeInToc) {
+        layerStore.upsertLayer({
+          id: payload.id,
+          label: (payload.label as string) ?? payload.id,
+          visible: payload.visible ?? true,
+          type: payload.type
+        });
+      }
       return Promise.resolve();
     }
 
