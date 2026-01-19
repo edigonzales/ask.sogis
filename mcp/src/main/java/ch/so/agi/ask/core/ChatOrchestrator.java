@@ -29,14 +29,17 @@ public class ChatOrchestrator {
     private final ActionPlanner actionPlanner;
     private final ChatMemoryStore chatMemoryStore;
     private final PendingChoiceStore pendingChoiceStore;
+    private final SelectionMemoryStore selectionMemoryStore;
 
     public ChatOrchestrator(PlannerLlm plannerLlm, McpClient mcpClient, ActionPlanner actionPlanner,
-            ChatMemoryStore chatMemoryStore, PendingChoiceStore pendingChoiceStore) {
+            ChatMemoryStore chatMemoryStore, PendingChoiceStore pendingChoiceStore,
+            SelectionMemoryStore selectionMemoryStore) {
         this.plannerLlm = plannerLlm;
         this.mcpClient = mcpClient;
         this.actionPlanner = actionPlanner;
         this.chatMemoryStore = chatMemoryStore;
         this.pendingChoiceStore = pendingChoiceStore;
+        this.selectionMemoryStore = selectionMemoryStore;
     }
 
     /**
@@ -66,6 +69,7 @@ public class ChatOrchestrator {
     public void clearSession(String sessionId) {
         chatMemoryStore.deleteSession(sessionId);
         pendingChoiceStore.clear(sessionId);
+        selectionMemoryStore.clear(sessionId);
     }
 
     private List<ChatResponse.Step> buildSteps(String sessionId, PlannerOutput plan) {
@@ -116,6 +120,7 @@ public class ChatOrchestrator {
             result = executeToolCalls(req.sessionId(), context.requestId(), context.step(),
                     context.nextToolCallIndex(), selectedItem);
         }
+        selectionMemoryStore.save(req.sessionId(), selectedItem);
         ActionPlan ap = actionPlanner.toActionPlan(context.step().intent(), result);
         var message = Optional.ofNullable(result).map(PlannerOutput.Result::message).orElse(ap.message());
         List<ChatResponse.Step> steps = List
@@ -142,6 +147,9 @@ public class ChatOrchestrator {
         // In echt: mergen/akkumulieren, Fehlerbehandlung, Tracing, Timeouts, …
         PlannerOutput.Result last = current;
         Map<String, Object> selection = initialSelection;
+        if (selection == null || selection.isEmpty()) {
+            selection = selectionMemoryStore.get(sessionId).orElse(null);
+        }
         //System.out.println("initialSelection: " + initialSelection);
         List<PlannerOutput.ToolCall> toolCalls = step.toolCalls();
         //System.out.println("toolCalls: " + toolCalls);
@@ -195,7 +203,10 @@ public class ChatOrchestrator {
                 return new PlannerOutput.Result("needs_user_choice", last.items(), message);
             }
 
-            selection = (last != null && last.items() != null && !last.items().isEmpty()) ? last.items().get(0) : null;
+            if (last != null && last.items() != null && !last.items().isEmpty()) {
+                selection = last.items().get(0);
+                selectionMemoryStore.save(sessionId, selection);
+            }
         }
         return last;
     }
