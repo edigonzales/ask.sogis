@@ -40,8 +40,9 @@ class ChatOrchestratorTests {
         ActionPlanner actionPlanner = new ActionPlanner();
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
                 List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
@@ -84,8 +85,9 @@ class ChatOrchestratorTests {
         ActionPlanner actionPlanner = new ActionPlanner();
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
                 List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS, Map.of("q", "Solothurn"))),
@@ -114,8 +116,9 @@ class ChatOrchestratorTests {
         ActionPlanner actionPlanner = new ActionPlanner();
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var step = new PlannerOutput.Step(IntentType.OEREB_EXTRACT,
                 List.of(new PlannerOutput.ToolCall(McpToolCapability.OEREB_EGRID_BY_XY,
@@ -151,8 +154,9 @@ class ChatOrchestratorTests {
         ActionPlanner actionPlanner = new ActionPlanner();
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var step = new PlannerOutput.Step(IntentType.LOAD_LAYER,
                 List.of(new PlannerOutput.ToolCall(McpToolCapability.LAYERS_SEARCH, Map.of("query", "wald"))),
@@ -202,8 +206,9 @@ class ChatOrchestratorTests {
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
@@ -263,8 +268,9 @@ class ChatOrchestratorTests {
         McpClient mcpClient = mock(McpClient.class);
         ActionPlanner actionPlanner = new ActionPlanner();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var firstPlan = new PlannerOutput("req-1",
                 List.of(new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
@@ -309,8 +315,9 @@ class ChatOrchestratorTests {
         ActionPlanner actionPlanner = new ActionPlanner();
         ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
         PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
         ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
-                pendingChoiceStore);
+                pendingChoiceStore, selectionMemoryStore);
 
         var step = new PlannerOutput.Step(IntentType.GEOTHERMAL_PROBE_ASSESSMENT,
                 List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS, Map.of("q", "addr")),
@@ -341,6 +348,49 @@ class ChatOrchestratorTests {
         Map<String, Object> selection = (Map<String, Object>) forwardedArgs.get("selection");
         assertThat(selection).doesNotContainKey("payload");
         assertThat(selection.get("coord")).isEqualTo(List.of(2600000d, 1200000d));
+    }
+
+    @Test
+    void carriesSelectionAcrossStepsWhenToolArgsAreEmpty() {
+        PlannerLlm planner = mock(PlannerLlm.class);
+        McpClient mcpClient = mock(McpClient.class);
+        ActionPlanner actionPlanner = new ActionPlanner();
+        ChatMemoryStore chatMemoryStore = new InMemoryChatMemoryStore();
+        PendingChoiceStore pendingChoiceStore = new InMemoryPendingChoiceStore();
+        SelectionMemoryStore selectionMemoryStore = new InMemorySelectionMemoryStore();
+        ChatOrchestrator orchestrator = new ChatOrchestrator(planner, mcpClient, actionPlanner, chatMemoryStore,
+                pendingChoiceStore, selectionMemoryStore);
+
+        var gotoStep = new PlannerOutput.Step(IntentType.GOTO_ADDRESS,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS,
+                        Map.of("q", "addr"))),
+                new PlannerOutput.Result("pending", List.of(), ""));
+
+        var oerebStep = new PlannerOutput.Step(IntentType.OEREB_EXTRACT,
+                List.of(new PlannerOutput.ToolCall(McpToolCapability.OEREB_EGRID_BY_XY, Map.of())),
+                new PlannerOutput.Result("pending", List.of(), ""));
+
+        when(planner.plan(anyString(), anyString())).thenReturn(new PlannerOutput("req-steps", List.of(gotoStep, oerebStep)));
+
+        Map<String, Object> selectionItem = new McpResponseItem("geolocation",
+                Map.of("id", "123", "label", "Test address", "coord", List.of(2600000d, 1200000d), "crs", "EPSG:2056"),
+                List.of(), Map.of()).toMap();
+
+        when(mcpClient.execute(eq(McpToolCapability.GEOLOCATION_GEOCODE_ADDRESS), anyMap()))
+                .thenReturn(new PlannerOutput.Result("ok", List.of(selectionItem), "Adresse gefunden"));
+
+        ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+        when(mcpClient.execute(eq(McpToolCapability.OEREB_EGRID_BY_XY), argsCaptor.capture()))
+                .thenReturn(new PlannerOutput.Result("ok", List.of(), "EGRID gefunden"));
+
+        orchestrator.handleUserPrompt(new ChatRequest("sess-steps", "Adresse + ÖREB", null));
+
+        Map<String, Object> forwardedArgs = argsCaptor.getValue();
+        assertThat(forwardedArgs.get("coord")).isEqualTo(List.of(2600000d, 1200000d));
+        assertThat(forwardedArgs.get("x")).isEqualTo(2600000d);
+        assertThat(forwardedArgs.get("y")).isEqualTo(1200000d);
+        assertThat(forwardedArgs.get("crs")).isEqualTo("EPSG:2056");
+        assertThat(forwardedArgs.get("selection")).isInstanceOf(Map.class);
     }
 
     private String messageText(Message message) {
